@@ -24,6 +24,12 @@
 #include <linux/err.h>
 #include <u-boot/zlib.h>
 
+#if defined(CONFIG_CMD_BOOTA)
+#include <bootimg.h>
+#include <romfs.h>
+#include <xload.h>
+#endif
+
 DECLARE_GLOBAL_DATA_PTR;
 
 #if defined(CONFIG_CMD_IMI)
@@ -773,3 +779,215 @@ U_BOOT_CMD(
 	"boot arm64 Linux Image image from memory", booti_help_text
 );
 #endif	/* CONFIG_CMD_BOOTI */
+
+#ifdef CONFIG_CMD_BOOTA
+#if defined(CONFIG_TANGO4)
+static inline unsigned int swapl(unsigned int x)
+{
+    return ((unsigned long int)((((unsigned long int)(x) & 0x000000ffU) << 24) |
+        (((unsigned long int)(x) & 0x0000ff00U) <<  8) |
+        (((unsigned long int)(x) & 0x00ff0000U) >>  8) |
+        (((unsigned long int)(x) & 0xff000000U) >> 24)));
+}
+
+static int do_boota(cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])
+{
+    unsigned char* load_addr = 0;
+
+    boot_img_hdr header;
+    unsigned char *kernel_img  = NULL;
+    unsigned char *ramdisk_img = NULL;
+
+    unsigned int kernel_num_pages = 0;
+    //unsigned int ramdisk_num_pages = 0;
+
+    char cmd_buffer[32];
+    unsigned int uimage_hdr_magic;
+    unsigned int uimg_addr;
+
+    load_addr = (unsigned char*)simple_strtoul( argv[1], NULL, 16 );
+
+    /* let's check the image loading address to see if it is boot.img first */
+    if ( strncmp( (char*)load_addr, BOOT_MAGIC, BOOT_MAGIC_SIZE ) != 0 ) {
+
+        int ret = 0;
+
+        if ( romfs_check((unsigned int *)load_addr) == 0 ) {
+            puts("The image is unrecognizable! \n");
+            return 1;
+        }
+
+        /* check to see if it is an android boot image and get the start address of the image */
+        ret = load_romfs((unsigned int)load_addr, &uimg_addr);
+
+        if ( ret < 0 )
+            return 1;
+
+        load_addr = (unsigned char*)uimg_addr;
+    }
+
+    /*
+     * this is raw boot image, let's find out the where the
+     * kernel and ramdisk image are there
+     */
+    memcpy( &header, load_addr, sizeof(boot_img_hdr) );
+
+    kernel_num_pages  = ( (unsigned int)header.kernel_size  + header.page_size - 1) / header.page_size;
+    //ramdisk_num_pages = ( (unsigned int)header.ramdisk_size + header.page_size - 1) / header.page_size;
+
+    /* gets kernel and ramdisk start address */
+    kernel_img  =  load_addr + header.page_size;
+    ramdisk_img =  kernel_img + (kernel_num_pages * header.page_size);
+
+    printf( "kernel  : 0x%08x\n", (unsigned int)kernel_img );
+    printf( "ram disk: 0x%08x\n", (unsigned int)ramdisk_img );
+
+    memcpy( &uimage_hdr_magic, kernel_img, sizeof(unsigned int) );
+
+    /* check to see the kernel image is uImage  */
+    if ( swapl(uimage_hdr_magic) == IH_MAGIC )  {
+        sprintf( cmd_buffer, "bootm %x %x", (unsigned int)kernel_img, (unsigned int)ramdisk_img );
+        run_command( cmd_buffer, flag );
+    }
+    else {
+        /* let's assume that the image is xload image and process accordingly */
+        if ( decrypt_xload( (unsigned int)kernel_img, (kernel_num_pages * header.page_size) ) >= 0 ) {
+            sprintf( cmd_buffer, "bootm %x %x", (unsigned int)kernel_img, (unsigned int)ramdisk_img );
+            run_command( cmd_buffer, flag );
+        }
+        else
+            return 1;
+    }
+    return 0;
+}
+
+U_BOOT_CMD(
+	boota,	CONFIG_SYS_MAXARGS,	1,	do_boota,
+    "boot from Android boot.img",
+    "[boot.img addr]\n"
+);
+
+#else /* CONFIG_TANGO4 */
+
+extern int security_check(unsigned char *image_addr, unsigned int length);
+static int do_boota(cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])
+{
+    unsigned char* load_addr = 0;
+
+    boot_img_hdr header;
+    unsigned char *kernel_img  = NULL;
+    unsigned char *ramdisk_img = NULL;
+
+    unsigned int kernel_num_pages = 0;
+    //unsigned int ramdisk_num_pages = 0;
+
+    //char* local_args[2];
+    char cmd_buffer[32];
+
+#ifdef CONFIG_ENV_AUTHENTICATION
+    char *cmdline = NULL;
+    char new_cmdline[1024] = {0};
+
+	extern int have_static_env;
+	extern int is_double_env_group;
+	extern int bank_switch;
+	cmdline = getenv("bootargs");
+	strncpy(new_cmdline, cmdline, strlen(cmdline));
+	if (have_static_env)
+		strcat(new_cmdline, " static_env");
+
+	if (is_double_env_group)
+		strcat(new_cmdline, " double_env");
+
+	if (bank_switch)
+		strcat(new_cmdline, " bank_switch");
+
+	setenv("bootargs", new_cmdline);
+#endif
+    load_addr = (unsigned char*)simple_strtoul( argv[1], NULL, 16 );
+
+    /* let's check the image loading address to see if it is boot.img first */
+    if ( strncmp((const char *) load_addr, BOOT_MAGIC, BOOT_MAGIC_SIZE ) != 0 ) {
+        puts("Not a valid Android boot.img!\n");
+        return 1;
+    }
+
+    /*
+     * this is raw boot image, let's find out the where the
+     * kernel and ramdisk image are there
+     */
+    memcpy( &header, load_addr, sizeof(boot_img_hdr) );
+
+#ifdef CONFIG_SIGMA_DTV_SECURITY
+    /*
+     * derive bootimg payload size from header
+     */
+    unsigned int load_sz = ROUND(sizeof(boot_img_hdr), header.page_size)	\
+			 + ROUND(header.kernel_size, header.page_size)		\
+			 + ROUND(header.ramdisk_size, header.page_size)		\
+			 + ROUND(header.second_size, header.page_size);
+    //printf("authentication bootimg addr:%p len:%#x\n", load_addr, load_sz);
+    security_check(load_addr, load_sz);
+#endif
+
+    kernel_num_pages  = ( (unsigned int)header.kernel_size  + header.page_size - 1) / header.page_size;
+    //ramdisk_num_pages = ( (unsigned int)header.ramdisk_size + header.page_size - 1) / header.page_size;
+
+    /* gets kernel and ramdisk start address */
+    kernel_img  =  load_addr + header.page_size;
+    ramdisk_img =  kernel_img + (kernel_num_pages * header.page_size);
+
+    printf( "kernel: 0x%08x\n", (unsigned int)kernel_img );
+    printf( "ram disk: 0x%08x\n", (unsigned int)ramdisk_img );
+
+    sprintf( cmd_buffer, "bootm %x %x", (unsigned int)kernel_img, (unsigned int)ramdisk_img );
+    run_command( cmd_buffer, flag );
+
+    return 0;
+}
+
+U_BOOT_CMD(
+	boota,	CONFIG_SYS_MAXARGS,	1,	do_boota,
+    "boot from Android boot.img",
+    "[boot.img addr]\n"
+);
+#endif /* CONFIG_TANGO4 */
+#endif /* CONFIG_CMD_BOOTA */
+
+#ifdef CONFIG_CMD_BOOTX
+
+extern unsigned int load_kernel_romfs( unsigned int romfsaddr, unsigned int *img_addr );
+
+static int do_bootx(cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])
+{
+    char cmd_buffer[32];
+    unsigned int xload_uimg_addr;
+
+    int file_size = 0;
+
+    load_addr = simple_strtoul( argv[1], NULL, 16 );
+
+    /* check to see if it is an android boot image and get the start address of the image */
+    file_size = load_kernel_romfs((unsigned int)load_addr, &xload_uimg_addr);
+
+    if ( file_size < 0 )
+        return 1;
+
+
+    if ( decrypt_xload( (unsigned int)xload_uimg_addr, file_size ) >= 0 ) {
+
+        sprintf( cmd_buffer, "bootm %x", (unsigned int)xload_uimg_addr );
+        run_command( cmd_buffer, flag );
+    }
+    else {
+        printf("Fail to decrypt!\n");
+    }
+
+    return 0;
+}
+U_BOOT_CMD(
+	bootx,	CONFIG_SYS_MAXARGS,	1,	do_bootx,
+    "boot from xloaded kernel image",
+    "[xloaded uimage addr]\n"
+);
+#endif

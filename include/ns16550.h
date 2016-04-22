@@ -60,6 +60,7 @@ struct ns16550_platdata {
 
 struct udevice;
 
+#if !defined(CONFIG_TANGO4)
 struct NS16550 {
 	UART_REG(rbr);		/* 0 */
 	UART_REG(ier);		/* 1 */
@@ -97,6 +98,34 @@ struct NS16550 {
 #define iir fcr
 #define dll rbr
 #define dlm ier
+
+#else // CONFIG_TANGO4 ////////////////////////////////////////
+/*
+ * This is register map for TANGO arch.
+ *
+ */
+struct NS16550 {
+	UART_REG(rbr);		/* 0 */
+	UART_REG(thr);		/* 1 */
+	UART_REG(ier);		/* 2 */
+	UART_REG(iir);		/* 3 */
+	UART_REG(fcr);		/* 4 */
+	UART_REG(lcr);		/* 5 */
+	UART_REG(mcr);		/* 6 */
+	UART_REG(lsr);		/* 7 */
+	UART_REG(msr);		/* 8 */
+	UART_REG(spr);		/* 9 */
+	UART_REG(clkdiv);		/* A */
+	UART_REG(clksel);		/* B */
+#ifdef CONFIG_DM_SERIAL
+	struct ns16550_platdata *plat;
+#endif
+};
+
+#define dll rbr
+#define dlm ier
+
+#endif // CONFIG_TANGO4 ///////////////////////////////////////
 
 typedef struct NS16550 *NS16550_t;
 

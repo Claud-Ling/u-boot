@@ -125,6 +125,14 @@ config ZYNQ_GEM
 	help
 	  This MAC is present in Xilinx Zynq and ZynqMP SoCs.
 
+config ETH_TANGOX
+	bool "Sigma Designs Ethernet MAC"
+	help
+	  This Sigma Designs Ethernet MAC. It supports
+	  100Mbit and 1 Gbit operation. You must enable CONFIG_PHYLIB to
+	  provide the PHY (physical media interface).
+
+
 config PIC32_ETH
 	bool "Microchip PIC32 Ethernet Support"
 	depends on DM_ETH && MACH_PIC32

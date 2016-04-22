@@ -152,8 +152,12 @@ int ns16550_calc_divisor(NS16550_t port, int clock, int baudrate)
 static void NS16550_setbrg(NS16550_t com_port, int baud_divisor)
 {
 	serial_out(UART_LCR_BKSE | UART_LCRVAL, &com_port->lcr);
+#if defined (CONFIG_TANGO4)
+	serial_out(baud_divisor, &com_port->clkdiv);
+#else
 	serial_out(baud_divisor & 0xff, &com_port->dll);
 	serial_out((baud_divisor >> 8) & 0xff, &com_port->dlm);
+#endif
 	serial_out(UART_LCRVAL, &com_port->lcr);
 }
 
@@ -432,6 +436,7 @@ static const struct udevice_id ns16550_serial_ids[] = {
 	{ .compatible = "ns16550" },
 	{ .compatible = "ns16550a" },
 	{ .compatible = "nvidia,tegra20-uart" },
+	{ .compatible = "ralink,rt2880-uart"},
 	{ .compatible = "snps,dw-apb-uart" },
 	{ .compatible = "ti,omap2-uart" },
 	{ .compatible = "ti,omap3-uart" },

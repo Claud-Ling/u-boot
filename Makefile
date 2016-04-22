@@ -5,7 +5,7 @@
 VERSION = 2016
 PATCHLEVEL = 03
 SUBLEVEL =
-EXTRAVERSION =
+EXTRAVERSION = -sigma
 NAME =
 
 # *DOCUMENTATION*
@@ -664,6 +664,8 @@ libs-$(CONFIG_HAS_POST) += post/
 libs-y += test/
 libs-y += test/dm/
 libs-$(CONFIG_UT_ENV) += test/env/
+libs-$(CONFIG_TANGO4) += ixkc/
+libs-$(CONFIG_TANGO4) += loadbin/
 
 libs-y += $(if $(BOARDDIR),board/$(BOARDDIR)/)
 
@@ -1609,6 +1611,11 @@ endif	# skip-makefile
 
 PHONY += FORCE
 FORCE:
+
+# sigma xload image make
+PHONY += xload
+xload:
+	$(MAKE) -C xload
 
 # Declare the contents of the .PHONY variable as phony.  We keep that
 # information in a variable so we can use it in if_changed and friends.

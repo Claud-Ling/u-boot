@@ -687,6 +687,12 @@ config TARGET_COLIBRI_PXA270
 	bool "Support colibri_pxa270"
 	select CPU_PXA
 
+config TANGO4
+	bool "SigmaDesings Tango4 SoCs"
+	select CPU_V7
+	help
+	  Support for SigmaDesigns TangoX SoC family.
+
 config ARCH_UNIPHIER
 	bool "Socionext UniPhier SoCs"
 	select CLK_UNIPHIER
@@ -766,6 +772,8 @@ source "arch/arm/mach-socfpga/Kconfig"
 
 source "arch/arm/mach-stm32/Kconfig"
 
+source "arch/arm/mach-tangox/Kconfig"
+
 source "arch/arm/mach-tegra/Kconfig"
 
 source "arch/arm/mach-uniphier/Kconfig"
@@ -834,6 +842,7 @@ source "board/schulercontrol/sc_sps_1/Kconfig"
 source "board/siemens/draco/Kconfig"
 source "board/siemens/pxm2/Kconfig"
 source "board/siemens/rut/Kconfig"
+source "board/sigmadesigns/sd87xx/Kconfig"
 source "board/silica/pengwyn/Kconfig"
 source "board/spear/spear300/Kconfig"
 source "board/spear/spear310/Kconfig"

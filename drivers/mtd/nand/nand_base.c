@@ -561,7 +561,11 @@ static int nand_block_checkbad(struct mtd_info *mtd, loff_t ofs, int getchip,
 void nand_wait_ready(struct mtd_info *mtd)
 {
 	struct nand_chip *chip = mtd->priv;
+#if defined(CONFIG_8734_NAND_TIMING_WORKAROUND)
+	u32 timeo = (CONFIG_SYS_HZ * 400) / 1000;
+#else
 	u32 timeo = (CONFIG_SYS_HZ * 20) / 1000;
+#endif
 	u32 time_start;
 
 	time_start = get_timer(0);
@@ -3663,6 +3667,39 @@ int nand_scan_ident(struct mtd_info *mtd, int maxchips,
 	return 0;
 }
 EXPORT_SYMBOL(nand_scan_ident);
+
+#if defined (CONFIG_TANGO4)
+int tangox_nand_scan_ident(struct mtd_info *mtd, int maxchips,
+		    struct nand_flash_dev *table)
+{
+	int busw, nand_maf_id, nand_dev_id;
+	struct nand_chip *chip = mtd->priv;
+	const struct nand_flash_dev *type;
+
+	/* Get buswidth to select the correct functions */
+	busw = chip->options & NAND_BUSWIDTH_16;
+	/* Set the default functions */
+	nand_set_defaults(chip, busw);
+
+	/* Read the flash type */
+	type = nand_get_flash_type(mtd, chip, &nand_maf_id, &nand_dev_id, table);
+
+	if (IS_ERR(type)) {
+#ifndef CONFIG_SYS_NAND_QUIET_TEST
+		printk(KERN_WARNING "No NAND device found!!!\n");
+#endif
+		chip->select_chip(mtd, -1);
+		return PTR_ERR(type);
+	}
+
+	/* Store the number of chips and calc total size for mtd */
+	chip->numchips = maxchips;
+	mtd->size = chip->chipsize;
+
+	return 0;
+}
+EXPORT_SYMBOL(tangox_nand_scan_ident);
+#endif
 
 /*
  * Check if the chip configuration meet the datasheet requirements.

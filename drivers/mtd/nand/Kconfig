@@ -71,6 +71,13 @@ config NAND_SUNXI
 	Enable support for NAND. This option allows SPL to read from
 	sunxi NAND using DMA transfers.
 
+config NAND_TANGOX
+	bool "Support for SigmaDesigns NAND controller"
+	depends on TANGO4
+	select SYS_NAND_SELF_INIT
+	---help---
+	Enable support for SigmaDesigns NAND controller.
+
 config NAND_ARASAN
 	bool "Configure Arasan Nand"
 	help

@@ -1,0 +1,12 @@
+if TARGET_SD87XX
+
+config SYS_BOARD
+	default "sd87xx"
+
+config SYS_VENDOR
+	default "sigmadesigns"
+
+config SYS_CONFIG_NAME
+	default "sd87xx"
+
+endif

@@ -582,4 +582,74 @@ config CMD_TPM_TEST
 
 endmenu
 
+menu "SigmaDesign commands"
+	depends on TANGO4
+
+config CMD_SETXENV
+	bool "setxenv"
+	default n
+	help
+	  Sigma Designs specific board environment variables.
+
+choice
+	prompt "XENV hash option"
+	default CRYPTO_SHA256
+	depends on CMD_SETXENV
+
+config CRYPTO_SHA1
+	bool "Use SHA1"
+
+config CRYPTO_SHA256
+	bool "Use SHA256"
+
+endchoice
+
+config XENV_EMMC_DEV
+	int "Device ID of eMMC which will store XENV."
+	depends on CMD_SETXENV
+	default "1"
+	help
+	  MMC device ID of the eMMC storage which will store the XENV.
+
+config XENV_EMMC_OFFSET0
+	hex "Offset of the first copy of xenv on eMMC."
+	default 0x700
+	depends on CMD_SETXENV
+
+config XENV_EMMC_OFFSET1
+	hex "Offset of the second copy of xenv on eMMC."
+	default 0x800
+	depends on CMD_SETXENV
+
+config CMD_GBUSRW
+	bool "Enable the gbus read/write command"
+	help
+	  This command support gr32/16/8 and gw32/16/8 commands.
+
+config CMD_IKC
+	bool "Enable ikc command"
+	help
+	  This command support ikc commands.
+
+config CMD_XKC
+	bool "Enable xkc command"
+	help
+	  This command support xkc commands.
+
+config CMD_KERNEL
+	bool "Enable kernel command"
+	help
+	  This command enables to start plain kernel binary without relocation.
+
+config CMD_ARMORSHELL
+	bool "Enable armor command"
+	help
+	  This command enables user to switching to armor shell.
+
+config CMD_SIGMACRC32
+	bool "Enable sigma's crc32 command."
+	help
+	  This command support Sigma's crc32 implementation.
+
+endmenu
 endmenu

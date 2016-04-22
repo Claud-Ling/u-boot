@@ -84,3 +84,13 @@ GTAGS
 *.orig
 *~
 \#*#
+
+#sigma xload files
+/xload/*.bin
+/xload/*.gz
+/xload/uImage-uboot
+/xload/uimage-uboot
+/xload/*.xload
+/xload/*-xload
+/xload/*.xload3
+/xload/*.pad

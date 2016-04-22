@@ -161,6 +161,17 @@ endif # CONFIG_SPL_BUILD
 
 obj-$(CONFIG_CMD_BLOB) += blob.o
 
+# sigma design specific
+ifdef CONFIG_TANGO4
+obj-$(CONFIG_CMD_GBUSRW) += gbusrw.o
+obj-$(CONFIG_CMD_SETXENV) += setxenv.o
+obj-$(CONFIG_CMD_IKC) += ikc.o
+obj-$(CONFIG_CMD_XKC) += xkc.o
+obj-$(CONFIG_CMD_KERNEL) += kernel.o
+obj-$(CONFIG_CMD_ARMORSHELL) += armor.o
+obj-$(CONFIG_CMD_SIGMACRC32) += sigmacrc32.o
+endif
+
 # core command
 obj-y += nvedit.o
 obj-y += disk.o

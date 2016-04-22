@@ -1,0 +1,17 @@
+if TANGO4
+
+choice
+	prompt "Tango4 board select"
+	optional
+
+config TARGET_SD87XX
+	bool "Tango4 generic boards"
+
+endchoice
+
+config SYS_SOC
+	default "tango4"
+
+source "board/sigmadesigns/sd87xx/Kconfig"
+
+endif

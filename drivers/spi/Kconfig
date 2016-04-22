@@ -164,6 +164,11 @@ config FSL_ESPI
 	  access the SPI interface and SPI NOR flash on platforms embedding
 	  this Freescale eSPI IP core.
 
+config TANGOX_SPI
+	bool "SigmaDesigns TANGOX SPI driver"
+	help
+	  Enable the SigmaDesigns SPI driver.
+
 config TI_QSPI
 	bool "TI QSPI driver"
 	help
