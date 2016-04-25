@@ -234,9 +234,9 @@
 #if defined(CONFIG_ANDROID_SUPPORT)
 #   define CONFIG_CMD_BOOTA
 #endif
-
-#define CONFIG_CMD_MMC
 #define CONFIG_CMD_BOOTX
+#define CONFIG_CMD_CACHE
+#define CONFIG_CMD_MMC
 #define CONFIG_CMD_FAT
  
 /* supporing ARMOR shell */
