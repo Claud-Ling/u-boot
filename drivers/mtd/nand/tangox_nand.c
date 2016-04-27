@@ -1587,29 +1587,58 @@ int tangox_board_nand_init(struct nand_chip *nand)
 #define DEF_TIMING2	0x120e1f58	/* conservative timing2 */
 #define DEF_DEVCFG	0x35		/* default devcfg, may not be correct */
 
+//taken from  ApplicationNote64MLC2 MLC schemes DEFAULT. boot-everywhere format
+#define DEF_TIMING1_MLC2 0x4c4c261c	/* conservative timing1 */
+#define DEF_TIMING2_MLC2 0x1c12194c	/* conservative timing2 */
+#define DEF_DEVCFG_MLC2  0x061d1135 /* default devcfg, may not be correct */
+
         u32 timing1, timing2, devcfg;
+        u32 def_timing1, def_timing2, def_devcfg;
         char buf[BUFSIZE];
-        u32 dsize, params[6];
+        u32 dsize, params[10];
+
+        if ( nand_ctrler == MLC_NAND_CTRLER ) {
+            def_timing1 = DEF_TIMING1;
+            def_timing2 = DEF_TIMING2;
+            def_devcfg  = DEF_DEVCFG;
+        }
+        else {
+            def_timing1 = DEF_TIMING1_MLC2;
+            def_timing2 = DEF_TIMING2_MLC2;
+            def_devcfg  = DEF_DEVCFG_MLC2;
+        }
 
         memset( params, 0x00, sizeof(params) );
 
-        sprintf(buf, CS_TIMING1, chip_cnt);
-        dsize = sizeof(u32);
+        /* read a.nandpart0 */
+        sprintf(buf, NAND_PARAM, chip_cnt);
+        dsize = sizeof(params);
 
-        if ((xenv_get((void *)xenv_addr, MAX_XENV_SIZE, buf, &timing1, &dsize) < 0) || (dsize != sizeof(u32)))
-            timing1 = (params[3] ? params[3] : DEF_TIMING1);
+        /* read nand param key first */
+        if ((xenv_get((void *)xenv_addr, MAX_XENV_SIZE, buf, params, &dsize) < 0) && (dsize == 0)) {
+            sprintf(buf, CS_TIMING1, chip_cnt);
+            dsize = sizeof(u32);
 
-        sprintf(buf, CS_TIMING2, chip_cnt);
-        dsize = sizeof(u32);
+            if ((xenv_get((void *)xenv_addr, MAX_XENV_SIZE, buf, &timing1, &dsize) < 0) || (dsize != sizeof(u32)))
+                timing1 = (params[3] ? params[3] : def_timing1);
 
-        if ((xenv_get((void *)xenv_addr, MAX_XENV_SIZE, buf, &timing2, &dsize) < 0) || (dsize != sizeof(u32)))
-            timing2 = (params[4] ? params[4] : DEF_TIMING2);
+            sprintf(buf, CS_TIMING2, chip_cnt);
+            dsize = sizeof(u32);
 
-        sprintf(buf, CS_DEVCFG, chip_cnt);
-        dsize = sizeof(u32);
+            if ((xenv_get((void *)xenv_addr, MAX_XENV_SIZE, buf, &timing2, &dsize) < 0) || (dsize != sizeof(u32)))
+                timing2 = (params[4] ? params[4] : def_timing2);
 
-        if ((xenv_get((void *)xenv_addr, MAX_XENV_SIZE, buf, &devcfg, &dsize) < 0) || (dsize != sizeof(u32)))
-            devcfg = (params[5] ? params[5] : DEF_DEVCFG);
+            sprintf(buf, CS_DEVCFG, chip_cnt);
+            dsize = sizeof(u32);
+
+            if ((xenv_get((void *)xenv_addr, MAX_XENV_SIZE, buf, &devcfg, &dsize) < 0) || (dsize != sizeof(u32)))
+                devcfg = (params[5] ? params[5] : def_devcfg);
+        }
+        else {
+            timing1 = params[3];
+            timing2 = params[4];
+            devcfg  = params[5];
+        }
 
         WR_HOST_REG32(DEVICE_CFG(chx_reg[chip_cnt]), devcfg);
         WR_HOST_REG32(TIMING1(chx_reg[chip_cnt]), timing1);
