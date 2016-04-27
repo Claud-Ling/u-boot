@@ -808,6 +808,62 @@ static int tangox_write_page_hwecc(struct mtd_info *mtd, struct nand_chip *chip,
 
 	return 0;
 }
+/*
+     Scheme 6
+     size:  4       1024      27        993      6   31    27
+          +----+------------+-----+------------+---+----+-----+
+          |meta|   data0    | ECC |   dataN    |BB | .. | ECC |
+          +----+------------+-----+------------+---+----+-----+
+     pos: 0    4          1028  1055        2048  2054  2085  2112
+          \__________ ___________/ \_____________ ___________/
+                     V                           V
+                  packet0                     packet1
+
+     Scheme 10
+     size:  4       1024      51       1024      51       1024      51      867        6    157   51      4
+          +----+------------+-----+------------+-----+------------+-----+------------+----+-----+-----+--------+
+          |meta|   data0    | ECC |   dataN    | ECC |   dataN    | ECC |   dataN    | BB | ..  | ECC |(Unused)|
+          +----+------------+-----+------------+-----+------------+-----+------------+----+-----+-----+--------+
+     pos: 0    4          1028  1079        2103   2154         3178   3229       4096   4102  4259  4310    4314
+          \__________ ___________/ \________ _______/ \________ _______/ \_____________ _____________/
+                     V                      V                  V                       V
+                  packet0                packet1            packet2                 packet3
+ */
+static int tangox_read_page_raw(struct mtd_info *mtd,
+	struct nand_chip *chip, uint8_t *buf, int oob_required, int page)
+{
+    struct nand_chip *this = (struct nand_chip *)mtd->priv;
+    int i = 0;
+
+    /* assume that read command is already inssued before get to here */
+    tangox_set_padmode( PAD_MODE_PB );
+
+    for (i = 0; i < mtd->writesize; i++)
+        buf[i] = RD_HOST_REG8((RMuint32)this->IO_ADDR_R + SMP8XXX_REG_DATA);
+
+    /* read data in oob range ( 2k: offset 2048 ~ 2112, 4k: ) */
+    chip->cmdfunc(mtd, NAND_CMD_READOOB, 0x00, page);
+
+    for (i = 0; i < mtd->oobsize; i++)
+        chip->oob_poi[i] = RD_HOST_REG8((RMuint32)this->IO_ADDR_R + SMP8XXX_REG_DATA);
+
+	return 0;
+}
+
+static int tangox_write_page_raw(struct mtd_info *mtd,
+	struct nand_chip *chip, const uint8_t *buf, int oob_required)
+{
+    struct nand_chip *this = (struct nand_chip *)mtd->priv;
+    int i = 0;
+
+    /* assume that write command is already inssued before get to here */
+    tangox_set_padmode( PAD_MODE_PB );
+
+    for (i = 0; i < (mtd->writesize + mtd->oobsize); i++)
+        WR_HOST_REG8((RMuint32)this->IO_ADDR_W + SMP8XXX_REG_DATA, buf[i]);
+
+    return 0;
+}
 
 /**
  * tangox_verify_buf -  Verify chip data against buffer
@@ -1324,6 +1380,9 @@ int board_nand_post_init(nand_info_t *mtds, struct nand_chip *nand )
     nand->ecc.hwctl    = tangox_nand_enable_hwecc;
     nand->select_chip  = tangox_select_chip;
        
+    nand->ecc.read_page_raw   = tangox_read_page_raw;
+    nand->ecc.write_page_raw  = tangox_write_page_raw;
+
     if (nand_ctrler != PB_NAND_CTRLER) {
         nand->ecc.write_page = tangox_write_page_hwecc;
         nand->ecc.read_page  = tangox_read_page_hwecc;
