@@ -154,8 +154,37 @@ extern int tangox_nand_scan_ident(struct mtd_info *mtd, int maxchips,
 
 extern unsigned long tangox_chip_id(void);
 
+/*
+ *  PB Nand Controller ECC Layout
+ *
+ */
+// for 512B page, typically with 16B OOB
+static struct nand_ecclayout tangox_nand_pb_ecclayout512_16 = {
+    .eccbytes = 3,
+    .eccpos = {10, 11, 12},
+    .oobfree = {
+        {.offset = 6, .length = 4},
+    },
+};
+
+/* for 2KB page, typically with 64B OOB */
+static struct nand_ecclayout tangox_nand_pb_ecclayout2048_64 = {
+    .eccbytes = 12,
+    .eccpos = {10, 11, 12, 13, 14, 15, 16, 17,
+               18, 19, 20, 21},
+    .oobfree = {
+        {.offset = 6, .length = 4},
+        {.offset = 22, .length = 38},
+    },
+};
+
+
+/*
+ *	MLC1 Nand Controller ECC Layout
+ *
+ */
 /* for 512B page, typically with 16B OOB, and we use 4bit ECC */
-static struct nand_ecclayout tangox_nand_ecclayout512_16_4 = { // may not be supported
+static struct nand_ecclayout tangox_nand_mlc1_ecclayout512_16_4 = { // may not be supported
 	.eccbytes = 7,
 	.eccpos = {6, 7, 8, 9, 10, 11, 12},
 	.oobfree = {
@@ -164,7 +193,7 @@ static struct nand_ecclayout tangox_nand_ecclayout512_16_4 = { // may not be sup
 };
 
 /* for 2KB page, typically with 64B OOB, and we use 8bit ECC */
-static struct nand_ecclayout tangox_nand_ecclayout2048_64_8 = {
+static struct nand_ecclayout tangox_nand_mlc1_ecclayout2048_64_8 = {
 	.eccbytes = 13,
 	.eccpos = {49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61},
 	.oobfree = {
@@ -172,8 +201,48 @@ static struct nand_ecclayout tangox_nand_ecclayout2048_64_8 = {
 	},
 };
 
+// for 4KB page, typically with 128B OOB, and we use 9bit ECC
+static struct nand_ecclayout tangox_nand_mlc1_ecclayout4096_128_9 = {
+	.eccbytes = 15,
+	.eccpos = {110, 111, 112, 113, 114, 115, 116, 117,
+			   118, 119, 120, 121, 122, 123, 124},
+	.oobfree = {
+		{.offset = 125, .length = 3}
+	},
+};
+
+// for 4KB page, typically with 218B OOB or above, and we use 16bit ECC
+static struct nand_ecclayout tangox_nand_mlc1_ecclayout4096_218_16 = {
+	.eccbytes = 26,
+	.eccpos = {187, 188, 189, 190, 191, 192, 193, 194,
+			   195, 196, 197, 198, 199, 200, 201, 202,
+			   203, 204, 205, 206, 207, 208, 209, 210,
+			   211, 212},
+	.oobfree = {
+		{.offset = 213, .length = 5}
+	},
+};
+
+// for 8KB page, typically with 448 OOB, and we use 16bit ECC
+static struct nand_ecclayout tangox_nand_mlc1_ecclayout8192_448_16 = {
+	.eccbytes = 26,
+	.eccpos = {395, 396, 397, 398, 399, 400, 401, 402,
+			   403, 404, 405 ,406, 407, 408, 409, 410,
+			   411, 412, 413, 414, 415, 416, 417, 418,
+			   419, 420},
+	.oobfree = {
+		{.offset = 421, .length = 27}
+	}
+};
+
+
+/*
+ *	MLC2 Nand Controller ECC Layout
+ *
+ */
+
 /* for 2KB page, typically with 64B OOB, and we use 14bit ECC */
-static struct nand_ecclayout tangox_nand_ecclayout2048_64_14 = {
+static struct nand_ecclayout tangox_nand_mlc2_ecclayout2048_64_14 = {
 	.eccbytes = 27,
 	.eccpos = { 37, 38, 39, 40, 41, 42, 43, 44, 
                 45, 46, 47, 48, 49, 50, 51, 52, 
@@ -185,27 +254,38 @@ static struct nand_ecclayout tangox_nand_ecclayout2048_64_14 = {
 	},
 };
 
-
-/* for 4KB page, typically with 128B OOB, and we use 9bit ECC */
-static struct nand_ecclayout tangox_nand_ecclayout4096_128_9 = {
-	.eccbytes = 15,
-	.eccpos = {110, 111, 112, 113, 114, 115, 116, 117, 118, 119, 120, 121, 122, 123, 124},
+// for 4KB page, typically with 218B OOB or above, and we use 27bit ECC
+static struct nand_ecclayout tangox_nand_mlc2_ecclayout4096_218_27 = {
+	.eccbytes = 51,
+	.eccpos = { 163, 164, 165, 166, 167, 168, 169, 170, 171, 172,
+             173, 174, 175, 176, 177, 178, 179, 180, 181, 182,
+             183, 184, 185, 186, 187, 188, 189, 190, 191, 192,
+             193, 194, 195, 196, 197, 198, 199, 200, 201, 202,
+             203, 204, 205, 206, 207, 209, 210, 211, 212, 213,
+             214
+            },
 	.oobfree = {
-		{.offset = 125, .length = 3}
+		{.offset = 214, .length = 4}
 	},
 };
 
-/* for 4KB page, typically with 218B OOB or above, and we use 16bit ECC */
-static struct nand_ecclayout tangox_nand_ecclayout4096_218_16 = {
-	.eccbytes = 26,
-	.eccpos = {187, 188, 189, 190, 191, 192, 193, 194, 195, 196, 197, 198, 199, 200, 201, 202, 203, 204, 205, 206, 207, 208, 209, 210, 211, 212},
+// for 4KB page, typically with 224B OOB or above, and we use 27bit ECC
+static struct nand_ecclayout tangox_nand_mlc2_ecclayout4096_224_27 = {
+	.eccbytes = 51,
+	.eccpos = { 163, 164, 165, 166, 167, 168, 169, 170, 171, 172,
+             173, 174, 175, 176, 177, 178, 179, 180, 181, 182,
+             183, 184, 185, 186, 187, 188, 189, 190, 191, 192,
+             193, 194, 195, 196, 197, 198, 199, 200, 201, 202,
+             203, 204, 205, 206, 207, 209, 210, 211, 212, 213,
+             214
+            },
 	.oobfree = {
-		{.offset = 213, .length = 5}
+		{.offset = 214, .length = 10}
 	},
 };
 
-/* for 4KB page, typically with 232B OOB or above, and we use 27bit ECC */
-static struct nand_ecclayout tangox_nand_ecclayout4096_232_27 = {
+// for 4KB page, typically with 232B OOB or above, and we use 27bit ECC
+static struct nand_ecclayout tangox_nand_mlc2_ecclayout4096_232_27 = {
 	.eccbytes = 51,
 	.eccpos = { 163, 164, 165, 166, 167, 168, 169, 170, 171, 172,
                 173, 174, 175, 176, 177, 178, 179, 180, 181, 182,
@@ -219,17 +299,8 @@ static struct nand_ecclayout tangox_nand_ecclayout4096_232_27 = {
 	},
 };
 
-/* for 8KB page, typically with 448 OOB, and we use 16bit ECC */
-static struct nand_ecclayout tangox_nand_ecclayout8192_448_16 = { 
-	.eccbytes = 26,
-	.eccpos = {395, 396, 397, 398, 399, 400, 401, 402, 403, 404, 405 ,406, 407, 408, 409, 410, 411, 412, 413, 414, 415, 416, 417, 418, 419, 420},
-	.oobfree = {
-		{.offset = 421, .length = 27}
-	}
-};
-
 /* for 8KB page, typically with 448 OOB, and we use 28bit ECC */
-static struct nand_ecclayout tangox_nand_ecclayout8192_448_28 = { 
+static struct nand_ecclayout tangox_nand_mlc2_ecclayout8192_448_28 = {
     .eccbytes = 53,
 	.eccpos = { 381, 382, 383, 384, 385, 386, 387, 388, 389, 390,
                 391, 392, 393, 394, 395, 396, 397, 398, 399, 400,
@@ -241,26 +312,6 @@ static struct nand_ecclayout tangox_nand_ecclayout8192_448_28 = {
 	.oobfree = {
 		{.offset = 434, .length = 14}
 	}
-};
-
-/* OOB layout for devices on old controller */
-/* for 512B page, typically with 16B OOB */
-static struct nand_ecclayout tangox_oobinfo_16 = {
-    .eccbytes = 3,
-    .eccpos = {10, 11, 12},
-    .oobfree = {
-        {.offset = 6, .length = 4},
-    },
-};
-
-/* for 2KB page, typically with 64B OOB */
-static struct nand_ecclayout tangox_oobinfo_64 = {
-    .eccbytes = 12,
-    .eccpos = {10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21},
-    .oobfree = {
-        {.offset = 6, .length = 4},
-        {.offset = 22, .length = 38},
-    },
 };
 
 /* sets pad mode */
@@ -1398,7 +1449,7 @@ int board_nand_post_init(nand_info_t *mtds, struct nand_chip *nand )
                 
             }
             else if (nand_ctrler == MLC_NAND_CTRLER ) {
-                nand->ecc.layout = &tangox_nand_ecclayout512_16_4;
+                nand->ecc.layout = &tangox_nand_mlc1_ecclayout512_16_4;
                 nand->ecc.layout->oobfree[0].length = mtds->oobsize 
                                     - nand->ecc.layout->oobfree[0].offset;
                 nand->ecc.strength = 4;
@@ -1406,20 +1457,20 @@ int board_nand_post_init(nand_info_t *mtds, struct nand_chip *nand )
                 nand->ecc.calculate = tangox_nand_calculate_ecc_512;
                 nand->ecc.correct   = ecc_correct_512;
                 nand->ecc.bytes     = nand->ecc.total = 3;
-                nand->ecc.layout    = &tangox_oobinfo_16;
+                nand->ecc.layout    = &tangox_nand_pb_ecclayout512_16;
             }
             nand->ecc.size = 512;
             break;
 
         case 2048:
             if (nand_ctrler == MLC2_NAND_CTRLER ) {
-                nand->ecc.layout =  &tangox_nand_ecclayout2048_64_14;
+                nand->ecc.layout =  &tangox_nand_mlc2_ecclayout2048_64_14;
                 nand->ecc.layout->oobfree[0].length = 0;
 
                 nand->ecc.strength = 14;
             }
             else if (nand_ctrler == MLC_NAND_CTRLER ) {
-                nand->ecc.layout = &tangox_nand_ecclayout2048_64_8;
+                nand->ecc.layout = &tangox_nand_mlc1_ecclayout2048_64_8;
                 nand->ecc.layout->oobfree[0].length = mtds->oobsize 
                                     - nand->ecc.layout->oobfree[0].offset;
                 nand->ecc.strength = 8;
@@ -1427,16 +1478,23 @@ int board_nand_post_init(nand_info_t *mtds, struct nand_chip *nand )
                 nand->ecc.calculate = tangox_nand_calculate_ecc_2048;
                 nand->ecc.correct   = ecc_correct_2048;
                 nand->ecc.bytes     = nand->ecc.total = 12;
-                nand->ecc.layout    = &tangox_oobinfo_64;
+                nand->ecc.layout    = &tangox_nand_pb_ecclayout2048_64;
             }
             nand->ecc.size = 2048;
             break;  
 
         case 4096:  
             if (nand_ctrler == MLC2_NAND_CTRLER ) {
-                
-                if ( mtds->oobsize == 232 ) { 
-                    nand->ecc.layout = &tangox_nand_ecclayout4096_232_27;
+                if ( (mtds->oobsize >= 218) && (mtds->oobsize < 224) ) {
+                    nand->ecc.layout = &tangox_nand_mlc2_ecclayout4096_218_27;
+                    nand->ecc.layout->oobfree[0].length = mtds->oobsize
+                                        - nand->ecc.layout->oobfree[0].offset;
+                } else if ( (mtds->oobsize >= 224) && (mtds->oobsize < 232) ) {
+                    nand->ecc.layout = &tangox_nand_mlc2_ecclayout4096_224_27;
+                    nand->ecc.layout->oobfree[0].length = mtds->oobsize
+                                        - nand->ecc.layout->oobfree[0].offset;
+                } else if ( mtds->oobsize >= 232 ) {
+                    nand->ecc.layout = &tangox_nand_mlc2_ecclayout4096_232_27;
                     nand->ecc.layout->oobfree[0].length = mtds->oobsize 
                                         - nand->ecc.layout->oobfree[0].offset;
                 }
@@ -1445,12 +1503,12 @@ int board_nand_post_init(nand_info_t *mtds, struct nand_chip *nand )
             }
             else if (nand_ctrler == MLC_NAND_CTRLER ) {
                 if ((mtds->oobsize >= 128) && (mtds->oobsize < 218)) {
-                    nand->ecc.layout = &tangox_nand_ecclayout4096_128_9;
+                    nand->ecc.layout = &tangox_nand_mlc1_ecclayout4096_128_9;
                     nand->ecc.layout->oobfree[0].length = mtds->oobsize 
                                         - nand->ecc.layout->oobfree[0].offset;
                     nand->ecc.strength = 9;
                 } else if (mtds->oobsize >= 218) {
-                    nand->ecc.layout = &tangox_nand_ecclayout4096_218_16;
+                    nand->ecc.layout = &tangox_nand_mlc1_ecclayout4096_218_16;
                     nand->ecc.layout->oobfree[0].length = mtds->oobsize 
                                         - nand->ecc.layout->oobfree[0].offset;
                     nand->ecc.strength = 16;
@@ -1465,7 +1523,7 @@ int board_nand_post_init(nand_info_t *mtds, struct nand_chip *nand )
 
         case 8192: 
             if (nand_ctrler == MLC2_NAND_CTRLER ) {
-                nand->ecc.layout = &tangox_nand_ecclayout8192_448_28;
+                nand->ecc.layout = &tangox_nand_mlc2_ecclayout8192_448_28;
                 nand->ecc.layout->oobfree[0].length = mtds->oobsize 
                                 - nand->ecc.layout->oobfree[0].offset;
                 nand->ecc.size = 8192;
@@ -1473,7 +1531,7 @@ int board_nand_post_init(nand_info_t *mtds, struct nand_chip *nand )
                 
             }
             else if ( (nand_ctrler == MLC_NAND_CTRLER) && (max_page_shift >= 13) ) {
-                nand->ecc.layout = &tangox_nand_ecclayout8192_448_16;
+                nand->ecc.layout = &tangox_nand_mlc1_ecclayout8192_448_16;
                 nand->ecc.layout->oobfree[0].length = mtds->oobsize 
                                 - nand->ecc.layout->oobfree[0].offset;
                 nand->ecc.size = 8192;
