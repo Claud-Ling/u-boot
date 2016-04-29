@@ -103,7 +103,14 @@ struct us_data {
  * enough free heap space left, but the SCSI READ(10) and WRITE(10) commands are
  * limited to 65535 blocks.
  */
+#if defined (CONFIG_ARCH_SIGMA_TRIX) || defined (CONFIG_TANGO4)
+/*
+ * 65535 blocks is too long for some device, will casue device endpoint halt.
+ */
+#define USB_MAX_XFER_BLK    20
+#else
 #define USB_MAX_XFER_BLK	65535
+#endif
 #else
 #define USB_MAX_XFER_BLK	20
 #endif
