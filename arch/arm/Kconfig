@@ -577,6 +577,10 @@ config ARCH_ZYNQMP
 	select DM_MMC
 	select DM_SERIAL
 
+config ARCH_SIGMA_TRIX
+	bool "Sigma DTV platform"
+	select CPU_V7
+
 config TEGRA
 	bool "NVIDIA Tegra"
 
@@ -779,6 +783,8 @@ source "arch/arm/mach-tegra/Kconfig"
 source "arch/arm/mach-uniphier/Kconfig"
 
 source "arch/arm/mach-zynq/Kconfig"
+
+source "arch/arm/mach-trix/Kconfig"
 
 source "arch/arm/cpu/armv7/Kconfig"
 

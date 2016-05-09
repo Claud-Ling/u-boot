@@ -61,6 +61,7 @@ machine-$(CONFIG_TANGO4)		+= tangox
 machine-$(CONFIG_TEGRA)			+= tegra
 machine-$(CONFIG_ARCH_UNIPHIER)		+= uniphier
 machine-$(CONFIG_ARCH_ZYNQ)		+= zynq
+machine-$(CONFIG_ARCH_SIGMA_TRIX)	+= trix
 
 machdirs := $(patsubst %,arch/arm/mach-%/,$(machine-y))
 

@@ -1,0 +1,35 @@
+if ARCH_SIGMA_TRIX
+
+choice
+	prompt "Sigma DTV board select"
+	optional
+
+config TARGET_UXLB_EVB
+	bool "UXLB NAND board"
+
+config TARGET_SX6_EMMC
+	bool "SX6 emmc board"
+
+config TARGET_SX6_EVB
+	bool "SX6 NAND board"
+
+config TARGET_SX7_EMMC
+	bool "SX7 emmc board"
+
+config TARGET_SX7_EVB
+	bool "SX7 NAND board"
+
+config TARGET_SX8_EMMC
+	bool "SX8 emmc board"
+
+config TARGET_SX8_EVB
+	bool "SX8 NAND board"
+
+endchoice
+
+config SYS_SOC
+	default "trix"
+
+source "board/sigmadesigns/trix/Kconfig"
+
+endif

@@ -363,6 +363,15 @@ void autoboot_command(const char *s)
 		int prev = disable_ctrlc(1);	/* disable Control C checking */
 #endif
 
+#ifdef CONFIG_SIGMA_AUTOUPDATE
+		extern int is_update_from_usb(void);
+		int update = is_update_from_usb();
+		if (update) {
+			s = getenv("usb_update");
+			run_command(s, 0);
+		}
+#endif /* CONFIG_SIGMA_AUTOUPDATE */
+
 		run_command_list(s, -1, 0);
 
 #if defined(CONFIG_AUTOBOOT_KEYED) && !defined(CONFIG_AUTOBOOT_KEYED_CTRLC)

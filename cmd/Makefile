@@ -34,6 +34,20 @@ obj-$(CONFIG_DATAFLASH_MMC_SELECT) += dataflash_mmc_mux.o
 obj-$(CONFIG_CMD_DATE) += date.o
 obj-$(CONFIG_CMD_DEMO) += demo.o
 obj-$(CONFIG_CMD_SOUND) += sound.o
+#expansion for Sigma DTV SOC
+ifdef CONFIG_ARCH_SIGMA_TRIX
+obj-$(CONFIG_CMD_LOADCFG) += loadcfg.o
+obj-$(CONFIG_CMD_BOOTMIPS) += bootmips.o
+obj-$(CONFIG_CMD_LOADSETTINGS) += loadsettings.o
+obj-$(CONFIG_CMD_S2RAM) += s2ram.o
+obj-$(CONFIG_CMD_WATCHDOG) += watchdog.o
+obj-$(CONFIG_CMD_BOOTPARAM) += bootparam.o
+obj-$(CONFIG_CMD_SIGDSA) += sigdsa.o
+obj-$(CONFIG_SIGMA_DTV_SECURITY) += security/
+obj-$(CONFIG_CMD_MPROBE) += mprobe.o
+obj-$(CONFIG_CMD_ARMORSHELL) += armor.o
+obj-$(CONFIG_CMD_KERNEL) += kernel.o
+endif
 ifdef CONFIG_4xx
 obj-$(CONFIG_CMD_SETGETDCR) += dcr.o
 endif

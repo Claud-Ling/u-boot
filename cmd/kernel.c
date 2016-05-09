@@ -94,15 +94,6 @@ static void setup_end_tag(bd_t *bd)
         params->hdr.tag = ATAG_NONE;
         params->hdr.size = 0;
 }
-/*
- * r1 = machine nr, r2 = atags or dtb pointer.
- */
-static void setup_boot_prep_linux(void)
-{
-
-	gd->bd->bi_boot_params = 0x100;
-	gd->bd->bi_arch_number = MACH_TYPE_SIGMA_SX6;
-}
 
 #define KERNEL_CMD_LINE_DEFAULT		"mem=14M console=ttyS0,115200n8 "
 
@@ -129,8 +120,6 @@ int do_crc_start_kernel (cmd_tbl_t *cmdtp, int flag, int argc, char * const argv
 		
 		unsigned long machid;
 		
-		setup_boot_prep_linux();
-			
 		if (argc != 3) 
 		{
 			printf ("Usage:\n%s\n", cmdtp->usage);
@@ -244,8 +233,6 @@ int do_start_kernel (cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])
 		char new_cmdline[CMDLINE_MAX_SIZE];
 		unsigned long machid;
 		
-		setup_boot_prep_linux();
-				
 		if (argc > 2) 
 		{
 			printf ("Usage:\n%s\n", cmdtp->usage);

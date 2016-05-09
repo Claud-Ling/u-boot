@@ -454,8 +454,11 @@ static int mmc_complete_op_cond(struct mmc *mmc)
 	return 0;
 }
 
-
+#ifdef CONFIG_ARCH_SIGMA_TRIX
+int mmc_send_ext_csd(struct mmc *mmc, u8 *ext_csd)
+#else
 static int mmc_send_ext_csd(struct mmc *mmc, u8 *ext_csd)
+#endif
 {
 	struct mmc_cmd cmd;
 	struct mmc_data data;
