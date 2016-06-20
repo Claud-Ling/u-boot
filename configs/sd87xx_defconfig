@@ -183,7 +183,7 @@ CONFIG_BOOTSTAGE_STASH_SIZE=4096
 # Command line interface
 #
 # CONFIG_HUSH_PARSER is not set
-CONFIG_SYS_PROMPT="SM87xx # "
+CONFIG_SYS_PROMPT="SMP87xx # "
 
 #
 # Autoboot options
