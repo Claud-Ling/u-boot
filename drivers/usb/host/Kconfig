@@ -24,6 +24,13 @@ config USB_XHCI_UNIPHIER
 	---help---
 	  Enables support for the on-chip xHCI controller on UniPhier SoCs.
 
+config USB_XHCI_TRIX
+	bool "Support for Sigma DTV xHCI USB controller"
+	depends on OF_CONTROL
+	depends on ARCH_SIGMA_TRIX
+	---help---
+	 Sigma DTV xHCI USB controller
+
 endif
 
 config USB_OHCI_GENERIC
@@ -81,5 +88,12 @@ config USB_EHCI_GENERIC
 	default n
 	---help---
 	  Enables support for generic EHCI controller.
+
+config USB_EHCI_TRIX
+	bool "Support for Sigma DTV EHCI controller"
+	depends on OF_CONTROL
+	depends on ARCH_SIGMA_TRIX
+	---help---
+	 Sigma DTV EHCI USB controller
 
 endif

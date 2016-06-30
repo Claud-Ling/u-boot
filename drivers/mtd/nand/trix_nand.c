@@ -11,8 +11,8 @@
 #include <asm/arch/reg_io.h>
 #include <asm/arch/setup.h>
 
-#include "monza_nand.h"
-#include "monza_ecc.h"
+#include "trix_nand.h"
+#include "trix_ecc.h"
 
 #define FLASH_RNDOUT_READ
 

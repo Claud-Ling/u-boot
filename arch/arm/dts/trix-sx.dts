@@ -1,0 +1,24 @@
+/dts-v1/;
+
+/ {
+	#address-cells = <1>;
+	#size-cells = <1>;
+
+	usb@f502f000 {
+		compatible = "sigmadtv,trix-ehci";
+		reg = <0xf502f000 0x1000>;
+		interrupts = <47>;
+	};
+
+	usb@fb008000 {
+		compatible = "sigmadtv,trix-ehci";
+		reg = <0xfb008000 0x1000>;
+		interrupts = <47>;
+	};
+
+	usb@f5200000 {
+		compatible = "sigmadtv,trix-xhci";
+		reg = <0xf5200000 0x1000>;
+		interrupts = <47>;
+	};
+};

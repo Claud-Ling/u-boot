@@ -74,7 +74,7 @@ static unsigned char do_get_usb_port(void)
 {
 	char *s = getenv("usbport");
 
-	if(s && ((*s == '1') || (*s == '2')))
+	if(s && ((*s == '1') || (*s == '2') || (*s == '3')))
 		return (*s-0x30);
 
 	if(board_config[BOARD_USB_PORT] != 1 &&  board_config[BOARD_USB_PORT] != 2){

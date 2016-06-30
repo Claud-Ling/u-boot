@@ -11,7 +11,7 @@
 #include <asm-generic/errno.h>
 #include <asm/io.h>
 #include <asm/arch/reg_io.h>
-
+#include <dm.h>
 #include "xhci.h"
 
 //#define DEBUG
@@ -72,7 +72,7 @@ DECLARE_GLOBAL_DATA_PTR;
 #define SIGMA_XHCI_BASE    0xf5200000
 
 
-void usb_power_init(void)
+void usb3_power_init(void)
 {
 #if defined(CONFIG_MACH_SIGMA_SX6) || defined(CONFIG_MACH_SIGMA_SX7)
 	/* Reset USB Host will be down after xhci_hcd_init, so comment here */
@@ -142,11 +142,100 @@ void usb_power_init(void)
 	return;
 }
 
+#ifdef CONFIG_DM_USB
+int xhci_port_change(void)	
+{
+	uint32_t ret = 0, max_port = 0, i;
+	volatile uint32_t status = 0;
+	volatile uint32_t volatile *reg = NULL;
+
+	struct xhci_hccr *hccr = (struct xhci_hccr *)(SIGMA_XHCI_BASE);
+	struct xhci_hcor *hcor = (struct xhci_hcor *)((uint32_t) hccr
+			+ HC_LENGTH(xhci_readl(&(hccr->cr_capbase))));
+
+	printf("%s:hccr %x, hcor %x\n", __func__, (uint32_t)hccr, (uint32_t)hcor);
+	max_port = HCS_MAX_PORTS(xhci_readl(&hccr->cr_hcsparams1));
+
+	for (i=1; i<=max_port; i++) {
+		reg = (volatile uint32_t *)
+			(&hcor->portregs[i - 1].or_portsc);
+		status = xhci_readl(reg);
+		if (status & PORT_CONNECT) {
+			printf("USB3 device found\n");
+			ret = 1;
+			goto out;
+		} else {
+			printf("No USB3 device found\n");
+				ret = 0;
+		}
+	}
+out:
+	return ret;
+}
+
+static int xhci_trix_probe(struct udevice *dev)
+{
+	struct xhci_hccr *hccr;
+	struct xhci_hcor *hcor;
+	fdt_addr_t hcd_base;
+	struct xhci_ctrl *ctrl = dev_get_priv(dev);
+
+	usb3_power_init();
+//	mdelay(200);
+	memset(ctrl, 0, sizeof(struct xhci_ctrl));
+	/*
+	 * Get the base address for EHCI controller from the device node
+	 */
+	hcd_base = dev_get_addr(dev);
+	if (hcd_base == FDT_ADDR_T_NONE) {
+		debug("Can't get the EHCI register base address\n");
+		return -ENXIO;
+	}
+
+	hccr = (struct xhci_hccr *)(hcd_base);
+	hcor = (struct xhci_hcor *)
+		((u32)hccr + HC_LENGTH(xhci_readl(&hccr->cr_capbase)));
+
+	printf("xhci-trix: init hccr %x and hcor %x hc_length %d\n",
+	      (u32)hccr, (u32)hcor,
+	      (u32)HC_LENGTH(xhci_readl(&hccr->cr_capbase)));
+
+	return xhci_register(dev, hccr, hcor);
+}
+
+static int xhci_trix_remove(struct udevice *dev)
+{
+	int ret;
+
+	ret = xhci_deregister(dev);
+	if (ret)
+		return ret;
+
+	return 0;
+}
+
+static const struct udevice_id xhci_usb_ids[] = {
+	{ .compatible = "sigmadtv,trix-xhci", },
+	{ }
+};
+
+U_BOOT_DRIVER(xhci_trix) = {
+	.name	= "xhci_trix",
+	.id	= UCLASS_USB,
+	.of_match = xhci_usb_ids,
+	.probe = xhci_trix_probe,
+	.remove = xhci_trix_remove,
+	.ops	= &xhci_usb_ops,
+	.platdata_auto_alloc_size = sizeof(struct usb_platdata),
+	.priv_auto_alloc_size = sizeof(struct xhci_ctrl),
+	.flags	= DM_FLAG_ALLOC_PRIV_DMA,
+};
+#else /* CONFIG_DM_USB */
 int xhci_hcd_init(int index, struct xhci_hccr **hccr, struct xhci_hcor **hcor)
 {
 	int ret = 0;
 
-	usb_power_init();
+	usb333_power_init();
 
 //	mdelay(200);
 
@@ -184,7 +273,6 @@ int is_update_from_usb(void)
 	printf("hccr %x, hcor %x\n", (uint32_t)hccr, (uint32_t)hcor);
 
 	max_port = HCS_MAX_PORTS(xhci_readl(&hccr->cr_hcsparams1));
-	max_port = 1;
 	debug("max_port = %d\n", max_port);
 
 	if (s != NULL) {
@@ -229,3 +317,4 @@ end:
 	//debug("count = %d\n", count);
 	return ret;
 }
+#endif /* CONFIG_DM_USB */

@@ -1,6 +1,72 @@
 #ifndef __SIGMA_DTV_COMMON_H__
 #define __SIGMA_DTV_COMMON_H__
 
+/*
+ * board late init
+ */
+#define CONFIG_BOARD_LATE_INIT
+
+
+/*
+ * Flattened device tree support
+ */
+#define CONFIG_OF_LIBFDT
+
+
+/*
+ * Ethernet PHY support.
+ */
+#define CONFIG_PHY_SMSC			/* SMSC LAN8720 */
+#define CONFIG_PHY_MICREL		/* Micrel PHY */
+#define CONFIG_PHY_REALTEK		/* Realtek PHY */
+
+
+
+/*
+ *  cache configuration
+ */
+
+#define CONFIG_SYS_DCACHE_SIZE		(32<<10)
+#define CONFIG_SYS_ICACHE_SIZE		(32<<10)
+#define CONFIG_SYS_CACHELINE_SIZE	32
+/* #define CONFIG_SYS_ICACHE_OFF */
+/* #define CONFIG_SYS_DCACHE_OFF */
+#define CONFIG_SYS_L2CACHE_OFF
+
+/*
+ *  memory usages
+ */
+
+#define CONFIG_SYS_TEXT_BASE        0x02000000  /* 32M location */
+
+#define CONFIG_NR_DRAM_BANKS 		1
+#define CONFIG_SYS_SDRAM_BASE	    0x00000000
+#define CONFIG_SDRAM_SIZE		    0xbc00000	/* 188M, same as kernel low mem */
+
+#define CONFIG_SYS_MEMTEST_START	CONFIG_SYS_SDRAM_BASE
+#define CONFIG_SYS_MEMTEST_END		0x90000000
+
+#define CONFIG_SYS_MALLOC_LEN		(10*1024*1024)
+#define CONFIG_SYS_BOOTPARAMS_LEN	(128*1024)
+
+#define CONFIG_SYS_INIT_SP_ADDR		0x02E00000  /* 32M + 14M location */
+#define	CONFIG_SYS_LOAD_ADDR		0x08000000	/* default load address	*/
+
+/* #define CONFIG_SKIP_RELOCATE_UBOOT */
+/* #define CONFIG_MISC_INIT_R */
+
+/*
+ * flash
+ */
+#define CONFIG_SYS_MAX_FLASH_BANKS	2	    /* max number of memory banks */
+#define CONFIG_SYS_MAX_FLASH_SECT	(128)	/* max number of sectors on one chip */
+
+/*
+ * NOR flash configuration
+ */
+#define CONFIG_SYS_NO_FLASH
+#define CONFIG_SYS_FLASH_BASE       0x1c000000
+
 /* related to setting up ATAG */
 #define CONFIG_CMDLINE_TAG          
 #define CONFIG_SETUP_MEMORY_TAGS  
@@ -38,7 +104,7 @@
 #endif
 
 /*nand flash configuration */
-#if defined(CONFIG_NAND_MONZA)
+#if defined(CONFIG_TRIX_NAND)
 #   define CONFIG_SYS_NAND_SELF_INIT
 #   define CONFIG_SYS_MAX_NAND_DEVICE	    1
 #   define CONFIG_SYS_NAND_BASE		        0xFC000000
@@ -52,28 +118,26 @@
 #endif
 
 /* usb */
-#if defined (CONFIG_USB_MONZA_EHCI)
+#if defined (CONFIG_USB_EHCI_TRIX)
 #   define CONFIG_EHCI_HCD_INIT_AFTER_RESET
 #   define CONFIG_SYS_USB_EHCI_MAX_ROOT_PORTS	8
-#   define CONFIG_USB_EHCI
 /* #define CONFIG_EHCI_DCACHE */
+#   define CONFIG_CMD_USB
 #   define CONFIG_USB_STORAGE
 #   define CONFIG_USB_NETWORK
-#   define CONFIG_USB_EHCI_MONZA
 #   define CONFIG_USB_MAX_CONTROLLER_COUNT      2
 #endif
 /* usb3.0 */
-#if defined (CONFIG_USB_MONZA_XHCI)
-#   define CONFIG_USB_XHCI
+#if defined (CONFIG_USB_XHCI_TRIX)
+#   define CONFIG_CMD_USB
 #   define CONFIG_USB_STORAGE
 #   define CONFIG_USB_NETWORK
-#   define CONFIG_USB_XHCI_MONZA
 #   define CONFIG_SYS_USB_XHCI_MAX_ROOT_PORTS 2
 #endif
 
 
 /* sd/mmc dependent */
-#if defined(CONFIG_MONZA_MMC)
+#if defined(CONFIG_TRIX_MMC)
 #   define MMC_BASE_ADDR                        (0xfb00a000)
 #   define CONFIG_MMC
 #   define CONFIG_GENERIC_MMC
@@ -123,7 +187,7 @@
 #define CONFIG_SYS_BAUDRATE_TABLE	{ 9600, 19200, 38400, 57600, 115200 }
 
 /* saving env */
-#if defined(CONFIG_NAND_MONZA)
+#if defined(CONFIG_TRIX_NAND)
 
 #   define CONFIG_ENV_IS_IN_NAND
 #   define CONFIG_ENV_OFFSET            0x00600000     /* 6 MB   */
@@ -137,7 +201,7 @@
 #   define CONFIG_ENV_OFFSET_REDUND     (CONFIG_ENV_OFFSET + (0x00300000))
 #   define CONFIG_ENV_SIZE_REDUND       CONFIG_ENV_SIZE
 
-#elif defined (CONFIG_MONZA_MMC)
+#elif defined (CONFIG_TRIX_MMC)
 
 #   define CONFIG_ENV_IS_IN_MMC
 #   define CONFIG_SYS_MMC_ENV_DEV       0
@@ -202,14 +266,11 @@
 #define CONFIG_CMD_SCRIPT
 #define CONFIG_CMD_WATCHDOG
 
-#if defined(CONFIG_NAND_MONZA)
+#if defined(CONFIG_TRIX_NAND)
 #   define CONFIG_CMD_NAND
 #   define CONFIG_SYS_NAND_MAX_ECCPOS  360
 #   define CONFIG_SYS_NAND_MAX_OOBFREE 8
-#endif
-
-#if defined(CONFIG_USB_MONZA_EHCI) || defined(CONFIG_USB_MONZA_XHCI)
-#   define CONFIG_CMD_USB
+#   define CONFIG_MTD_DEVICE
 #endif
 
 /*mtd*/
@@ -221,7 +282,7 @@
 #   define CONFIG_LZO             1
 #endif
 
-#if defined(CONFIG_MONZA_MMC)
+#if defined(CONFIG_TRIX_MMC)
 #   define CONFIG_CMD_MMC
 #endif
 
@@ -290,4 +351,80 @@
 #   define CONFIG_CMD_MPROBE
 #endif
 
+#ifdef CONFIG_TRIX_NAND
+#define	CONFIG_EXTRA_ENV_SETTINGS					\
+    "bootcmd=run check_bmode\0"   \
+    "verify=n\0"          \
+    "boot_size=1400000\0"   \
+    "console_config=console=ttyS0,115200n8 earlyprintk=serial,uart0,115200\0" \
+    "ramdisk_rootfs=/dev/ram0 rw\0"  \
+    "nfs_rootfs=root=/dev/nfs rw nfsroot=server_ip:path rdinit=/none init=/init ip=:::::eth0:dhcp\0"  \
+    "partitions=mtdparts=trix-nand:27M(Uboot),50M(reserved_data),20M(systemA),20M(systemB),30M(etc),150M(APP_A),150M(APP_B),50M(rw_data),-(data)\0"  \
+    "set_bootargs=setenv bootargs ${rootfs} ${mem_config} ${console_config}"    \
+        " ethaddr=${ethaddr} ${partitions} ${armor_config} OPT=${opt_partition} bootmode=${bootmode}\0" \
+    "check_bmode=run check_bmips;run set_memconfig setup_rootfs set_bootargs;if itest.s ${bootmode} == systemA; then "   \
+        "run start_systemA; else "    \
+        "run start_systemB; fi\0"  \
+    "bootmode=systemA\0" \
+    "rootfs_type=ramdisk\0" \
+    "setup_rootfs=if itest.s ${rootfs_type} == nfs; then setenv rootfs ${nfs_rootfs}; else setenv rootfs ${ramdisk_rootfs}; fi\0" \
+    "mconfig=n\0" /*triple state: 'y'-auto; 'm'-manual; 'n'-off*/\
+    "msize=488\0" \
+    "bootmips=n\0" /*dual state: 'y'-enable; 'n'-disable*/\
+    "start_bootmips=bootmips 700000:nand\0" \
+    "check_bmips=if itest.s ${bootmips} == y;then run start_bootmips;fi\0" \
+    "start_systemA=nand read 8000000 4d00000 ${bootsize};boota 8000000\0" \
+    "start_systemB=nand read 8000000 6100000 ${bootsize};boota 8000000\0" \
+    "mem_configA=mem=188m  redund_env\0" \
+    "mem_configB=mem=188m  redund_env\0" \
+    "set_memconfig=if itest.s ${opt_partition} == mtdblock.APP_A; then set mem_config ${mem_configA}; else set mem_config ${mem_configB}; fi\0" \
+    "opt_partition=mtdblock.APP_A\0" \
+    "usbport=1\0" \
+    "usb_update=dcache off;armor cfg;set update_method USB;usb reset;if fatload usb 0 4000000 fs.sys;then "	\
+	"source 4000000;else dcache on;run bootcmd; fi;" \
+        "if fatload usb 0 4000000 safe-kernel.img1; then crc_start_kernel 4000000 fscmdline;"	\
+	"else dcache on;run bootcmd;fi\0"         \
+    ""
+
+#endif
+
+#ifdef CONFIG_TRIX_MMC
+#define	CONFIG_EXTRA_ENV_SETTINGS					\
+    "bootcmd=run check_bmode\0"   \
+    "verify=n\0"          \
+    "boot_size=18000\0"   \
+    "mem_config=mem=188M mem=167M@857M mem=410M@2150M vmalloc=512M\0"  \
+    "mem_config488=mem=188M mem=167M@857M mem=410M@2150M vmalloc=512M\0"  /*for 512M(umac2)+1G(umac1)+1G(umac0)*/\
+    "console_config=console=ttyS0,115200n8 earlyprintk=serial,uart0,115200\0" \
+    "ramdisk_rootfs=/dev/ram0 rw\0"  \
+    "nfs_rootfs=root=/dev/nfs rw nfsroot=server_ip:path rdinit=/none init=/init ip=:::::eth0:dhcp\0"  \
+    "emmc_partitions=blkdevparts=mmcblk0:6M(reserved),1M(env),48M(recovery)"    \
+        ",48M(boot),320M(system),128M(cache),1G(sdcard),-(data)"  \
+        ";mmcblk0boot0:512K(uboot),64K(mcu),-(reserved)"  \
+        ";mmcblk0boot1:512K(uboot),64K(mcu),-(reserved)\0"  \
+    "set_bootargs=setenv bootargs ${rootfs} ${mem_config} ${console_config}"    \
+        " androidboot.hardware=sx6 ethaddr=${ethaddr} ${emmc_partitions} ${armor_config}\0" \
+    "start_normal=mmc read 8000000 1B800 ${boot_size};boota 8000000\0"    \
+    "start_recovery=mmc read 8000000 3800 18000;boota 8000000\0"  \
+    "check_bmode=run check_bmips;run set_memcfg check_mmc_mode set_bootargs;if itest.s ${bootmode} == normalmode; then "   \
+        "run start_normal; else "    \
+        "run start_recovery; fi\0"  \
+    "bootmode=normalmode\0" \
+    "rootfs_type=ramdisk\0" \
+    "setup_rootfs=if itest.s ${rootfs_type} == nfs; then setenv rootfs ${nfs_rootfs}; else setenv rootfs ${ramdisk_rootfs}; fi\0" \
+    "android_update_file=/mnt/update.zip\0"   \
+    "mconfig=n\0" /*triple state: 'y'-auto; 'm'-manual; 'n'-off*/\
+    "msize=488\0" \
+    "prepare_memcfg=set do_memcfg set mem_config $\"{mem_config${msize}}\"\0" \
+    "set_memcfg=if itest.s ${mconfig} == y || itest.s ${mconfig} == m;then run prepare_memcfg do_memcfg;fi\0" \
+    "bootmips=n\0" /*dual state: 'y'-enable; 'n'-disable*/\
+    "start_bootmips=bootmips 700000:mmc\0" \
+    "check_bmips=if itest.s ${bootmips} == y;then run start_bootmips;fi\0" \
+    "usbport=1\0" \
+    "usb_update=dcache off;armor cfg;set update_method USB;usb reset;if fatload usb 0 4000000 fs.sys;then "	\
+	"source 4000000;else dcache on;run bootcmd; fi;" \
+        "if fatload usb 0 4000000 safe-kernel.img1; then crc_start_kernel 4000000 fscmdline;"	\
+	"else dcache on;run bootcmd;fi\0"         \
+    ""
+#endif
 #endif /*__SIGMA_DTV_COMMON_H__*/

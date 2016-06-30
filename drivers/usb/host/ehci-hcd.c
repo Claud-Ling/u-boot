@@ -1029,7 +1029,7 @@ static int ehci_common_init(struct ehci_ctrl *ctrl, uint tweaks)
 	 */
 	if (ctrl->periodic_list == NULL)
 		ctrl->periodic_list = memalign(4096, 1024 * 4);
-
+	
 	if (!ctrl->periodic_list)
 		return -ENOMEM;
 	for (i = 0; i < 1024; i++) {

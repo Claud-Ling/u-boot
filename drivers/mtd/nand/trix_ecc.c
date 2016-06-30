@@ -9,7 +9,7 @@
 #include <linux/mtd/nand_bch.h>
 #include <asm/arch/reg_io.h>
 
-#include "monza_nand.h"
+#include "trix_nand.h"
 
 void bch_encode_start(struct nand_chip *chip)
 {

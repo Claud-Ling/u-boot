@@ -1,32 +1,79 @@
 if ARCH_SIGMA_TRIX
 
+menu "Sigma DTV SOC"
 choice
-	prompt "Sigma DTV board select"
-	optional
+	prompt "Soc series"
 
-config TARGET_UXLB_EVB
-	bool "UXLB NAND board"
+config MACH_SIGMA_UXLB
+	bool "UXLB chipset"
 
-config TARGET_SX6_EMMC
-	bool "SX6 emmc board"
+config MACH_SIGMA_SX6
+	bool "SX6 chipset"
 
-config TARGET_SX6_EVB
-	bool "SX6 NAND board"
+config MACH_SIGMA_SX7
+	bool "SX7 chipset"
 
-config TARGET_SX7_EMMC
-	bool "SX7 emmc board"
-
-config TARGET_SX7_EVB
-	bool "SX7 NAND board"
-
-config TARGET_SX8_EMMC
-	bool "SX8 emmc board"
-
-config TARGET_SX8_EVB
-	bool "SX8 NAND board"
+config MACH_SIGMA_SX8
+	bool "SX8 chipset"
 
 endchoice
 
+config SIGMA_TRIX_NAME
+	string
+	prompt "Enter SOC nanme"
+
+choice
+	prompt "Boot device"
+
+config TRIX_MMC
+	bool "eMMC boot"
+
+config TRIX_NAND
+	bool "Nand boot"
+
+endchoice
+
+if MACH_SIGMA_SX6 || MACH_SIGMA_UXLB
+config SIGMA_NR_UMACS
+	int "Set counts of UMAC controller"
+	default 2
+endif
+
+if MACH_SIGMA_SX7 || MACH_SIGMA_SX8
+config SIGMA_NR_UMACS
+	int "Set counts of UMAC controller"
+	default 3
+endif
+
+menu "Sigma DTV features"
+
+config BOARD_CONFIGURATION
+	bool "Load Board configuration from disk"
+
+config SYS_BOOTMIPS
+	bool "Boot Display & AV mips in u-boot"
+
+config SECURE_MONITOR
+	bool "Support board with secure extension enable case"
+
+config TEST_S2RAM
+	bool "Support test S2RAM"
+
+config SYSLOG
+	bool "SYSLOG control"
+	help
+	SYSLOG
+
+config SIGMA_MCONFIG
+	bool "Enable MCONFIG"
+	help
+	Auto detect each UAMC size and save as ENV 'msize'
+
+config SIGMA_AUTOUPDATE
+	bool "Auto update from USB"
+
+endmenu
+endmenu
 config SYS_SOC
 	default "trix"
 

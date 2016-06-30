@@ -239,7 +239,7 @@ static int sdhci_send_command(struct mmc *mmc, struct mmc_cmd *cmd,
 	sdhci_writew(host, SDHCI_MAKE_CMD(cmd->cmdidx, flags), SDHCI_COMMAND);
 	start = get_timer(0);
 	do {
-#if defined (CONFIG_TANGO4) || defined (CONFIG_MONZA_MMC)
+#if defined (CONFIG_TANGO4) || defined (CONFIG_TRIX_MMC)
         mdelay(1);
 #endif
 		stat = sdhci_readl(host, SDHCI_INT_STATUS);

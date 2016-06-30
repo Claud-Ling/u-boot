@@ -36,14 +36,20 @@ int checkboard (void)
 	return 0;
 }
 
-extern void usb_power_init(void);
+extern void usb2_power_init(void);
+extern void usb3_power_init(void);
 int board_init(void)
 {
     /* use hard coded value */
     gd->bd->bi_arch_number = MACH_TYPE_SIGMA_TRIX;
     gd->bd->bi_boot_params = (0x00000000 + 0x100); /* boot param addr */
     /* ease usb power */
-    usb_power_init();
+#if CONFIG_USB_EHCI_TRIX
+    usb2_power_init();
+#endif
+#if CONFIG_USB_XHCI_TRIX
+    usb3_power_init();
+#endif
 	return 0;
 }
 

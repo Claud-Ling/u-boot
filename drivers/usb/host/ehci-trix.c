@@ -1,12 +1,25 @@
-
 #include <common.h>
 #include <asm/io.h>
 #include <usb.h>
 #include "ehci.h"
+#include <dm.h>
 
 #include <asm/arch/reg_io.h>
 
-void usb_power_init(void)
+
+#if defined (CONFIG_MACH_SIGMA_SX6) || defined (CONFIG_MACH_SIGMA_SX7) || defined (CONFIG_MACH_SIGMA_SX8)
+#define USB0_BASE  0xf502f000
+#define USB1_BASE  0xfb008000
+
+#elif defined (CONFIG_MACH_SIGMA_UXLB)
+#define USB0_BASE  0xfb003000
+#define USB1_BASE  0xfb007000
+
+#else
+#error "Unknow SOC type"
+#endif
+
+void usb2_power_init(void)
 {
 #if defined (CONFIG_MACH_SIGMA_SX6) || defined (CONFIG_MACH_SIGMA_SX7)
 	/* Set GPIO16 functionally as GPIO */
@@ -86,17 +99,136 @@ static void usb_endin_setting(void)
 
 }
 
-#if defined (CONFIG_MACH_SIGMA_SX6) || defined (CONFIG_MACH_SIGMA_SX7) || defined (CONFIG_MACH_SIGMA_SX8)
-#define USB0_BASE  0xf502f000
-#define USB1_BASE  0xfb008000
+#ifdef CONFIG_DM_USB
+#define ehci_port_change(base)	({			\
+	int _ret_ = 0;					\
+	if (ReadRegWord(base + 0x184) & EHCI_PS_CS)	\
+		_ret_ = 1;				\
+	else						\
+		_ret_ = 0;				\
+	_ret_;						\
+})
 
-#elif defined (CONFIG_MACH_SIGMA_UXLB)
-#define USB0_BASE  0xfb003000
-#define USB1_BASE  0xfb007000
+extern int xhci_port_change(void);
 
-#else
-#error "Unknow SOC type"
+static int usb_stick_is_exist(void)
+{
+	char *s = getenv("usbport");
+
+
+#if CONFIG_USB_EHCI_TRIX
+	if(s != NULL && *s == '1') {
+		return ehci_port_change(USB0_BASE);
+	}
 #endif
+
+#if CONFIG_USB_XHCI_TRIX
+	printf("1\n");
+	if(s != NULL && *s == '3') {
+	printf("2\n");
+		return xhci_port_change();
+	}
+#endif
+
+#if CONFIG_USB_EHCI_TRIX
+	return ehci_port_change(USB1_BASE);
+#endif
+
+	/* No device exist */
+	return 0;
+}
+
+int is_update_from_usb(void)
+{
+
+	uint32_t auto_update = 1;
+	int32_t ret = 0;
+	char *s = getenv("auto_update");
+
+	usb2_power_init();
+
+	if (s != NULL) {
+		switch (*s) {
+		case 'N':
+		case 'n':
+			auto_update = 0;
+			break;
+
+		case 'Y':
+		case 'y':
+		default:
+			auto_update = 1;
+			break;
+		}
+	}
+
+	if (auto_update) {
+		ret = usb_stick_is_exist();
+	}
+
+	/* No usb device*/
+	return ret;
+}
+
+static int ehci_trix_probe(struct udevice *dev)
+{
+	struct ehci_hccr *hccr;
+	struct ehci_hcor *hcor;
+	fdt_addr_t hcd_base;
+	struct ehci_ctrl *ctrl = dev_get_priv(dev);
+
+	memset(ctrl, 0, sizeof(struct ehci_ctrl));
+	usb2_power_init();
+	usb_agent_init();
+	usb_endin_setting();
+	/*
+	 * Get the base address for EHCI controller from the device node
+	 */
+	hcd_base = dev_get_addr(dev);
+	if (hcd_base == FDT_ADDR_T_NONE) {
+		debug("Can't get the EHCI register base address\n");
+		return -ENXIO;
+	}
+
+	hccr = (struct ehci_hccr *)(hcd_base + 0x100);
+	hcor = (struct ehci_hcor *)
+		((u32)hccr + HC_LENGTH(ehci_readl(&hccr->cr_capbase)));
+
+	printf("ehci-trix: init hccr %x and hcor %x hc_length %d\n",
+	      (u32)hccr, (u32)hcor,
+	      (u32)HC_LENGTH(ehci_readl(&hccr->cr_capbase)));
+
+	return ehci_register(dev, hccr, hcor, NULL, 0, USB_INIT_HOST);
+}
+
+static int ehci_trix_remove(struct udevice *dev)
+{
+	int ret;
+
+	ret = ehci_deregister(dev);
+	if (ret)
+		return ret;
+
+	return 0;
+}
+
+static const struct udevice_id ehci_usb_ids[] = {
+	{ .compatible = "sigmadtv,trix-ehci", },
+	{ }
+};
+
+U_BOOT_DRIVER(ehci_trix) = {
+	.name	= "ehci_trix",
+	.id	= UCLASS_USB,
+	.of_match = ehci_usb_ids,
+	.probe = ehci_trix_probe,
+	.remove = ehci_trix_remove,
+	.ops	= &ehci_usb_ops,
+	.platdata_auto_alloc_size = sizeof(struct usb_platdata),
+	.priv_auto_alloc_size = sizeof(struct ehci_ctrl),
+	.flags	= DM_FLAG_ALLOC_PRIV_DMA,
+};
+#else /* CONFIG_DM_USB */
 
 static int get_enabled_port(void)
 {
@@ -170,7 +302,7 @@ int ehci_hcd_init(int index, enum usb_init_type init,
 {
 
 	int enabled_port = get_enabled_port();
-	usb_power_init();
+	usb2_power_init();
 	usb_agent_init();
 	usb_endin_setting();
 
@@ -214,3 +346,4 @@ int ehci_hcd_stop(int index)
 {
 	return 0;
 }
+#endif
