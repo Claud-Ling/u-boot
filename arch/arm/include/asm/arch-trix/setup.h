@@ -17,12 +17,14 @@
 
 #include <config.h>
 
+#include <asm/arch/umac.h>
 #include <asm/arch/rmdefs.h>
 #include <asm/arch/dtv_smc.h>
 #ifdef CONFIG_DTV_BOOTPARAM
 #include <asm/arch/bootparam.h>
 #endif
 #include <asm/arch/otp.h>
+#include <asm/arch/clk.h>
 #ifdef CONFIG_SIGMA_DTV_SECURITY
 # ifndef __ASSEMBLY__
   extern int is_secure_enable(void);

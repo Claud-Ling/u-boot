@@ -1,13 +1,9 @@
 
 #include <common.h>
 #include <command.h>
+#include <asm/arch/umac.h>
 
 #define MAX_MEM_BANK_SIZE	0x40000000ul
-#define MEM_BASE_UMAC0		0x00000000ul
-#define MEM_BASE_UMAC1		0x80000000ul	/*remapping*/
-#define MEM_BASE_UMAC2		0x40000000ul	/*remapping*/
-
-#define MEM_BASE(id) MEM_BASE_UMAC##id
 
 #ifdef DEBUG
 # define trace(fmt...) do{printf(fmt);}while(0)
@@ -15,11 +11,15 @@
 # define trace(fmt...) do{}while(0)
 #endif
 
-static u32 memtell (u32 base)
+static u32 memtell (int id)
 {
 	u32 bs = 0;
-	bs = get_ram_size((long*)base, MAX_MEM_BANK_SIZE);
-	trace("find 0x%08x bytes memory at addr 0x%08x\n", bs, base);
+	/* only probe activated umac */
+	if (umac_is_activated(id)) {
+		u32 base = umac_get_addr(id);
+		bs = get_ram_size((long*)base, MAX_MEM_BANK_SIZE);
+		trace("find 0x%08x bytes memory at addr 0x%08x\n", bs, base);
+	}
 	return bs;
 }
 
@@ -41,13 +41,13 @@ static int do_mprobe ( cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[]
 		int i;
 		u32 sz[CONFIG_SIGMA_NR_UMACS];
 #if CONFIG_SIGMA_NR_UMACS > 0
-		sz[0] = memtell(MEM_BASE(0));
+		sz[0] = memtell(0);
 #endif
 #if CONFIG_SIGMA_NR_UMACS > 1
-		sz[1] = memtell(MEM_BASE(1));
+		sz[1] = memtell(1);
 #endif
 #if CONFIG_SIGMA_NR_UMACS > 2
-		sz[2] = memtell(MEM_BASE(2));
+		sz[2] = memtell(2);
 #endif
 #if CONFIG_SIGMA_NR_UMACS > 3
 # error "too much UMACs, max 3 by now!"

@@ -72,6 +72,12 @@ config SIGMA_MCONFIG
 config SIGMA_AUTOUPDATE
 	bool "Auto update from USB"
 
+config TRIX_TIMESTAMP
+	bool "Use timer0 get high percision time stamp"
+	help
+	Use command 'showts' can show out soc timer value elapsed 
+	clock @200MHz in ascending order 
+
 endmenu
 endmenu
 config SYS_SOC

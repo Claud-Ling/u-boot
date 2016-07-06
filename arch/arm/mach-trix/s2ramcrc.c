@@ -1,7 +1,6 @@
-#ifndef __UBOOT__
-#define __UBOOT__
-#endif
+
 #include "s2ramctrl.h"
+#include "asm-offsets.h"
 
 #ifdef __UBOOT__
 # include <common.h>
@@ -11,7 +10,7 @@
 # define MMAP(p, l) (p)
 # define MUNMAP(v) do{(v) = NULL;}while(0)
 # define GET_CRC32(s,l) crc32_lite (S2RAM_CRC32_SEED, (const void*)(s), l)
-#elif defined __KERNEL__
+#elif defined __LINUX__
 #include <linux/kernel.h>
 #include <linux/io.h>
 #include <linux/crc32.h>

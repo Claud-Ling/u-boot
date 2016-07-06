@@ -23,12 +23,14 @@ static struct pritimer *timer_base = (struct pritimer *)CONFIG_SYS_TIMERBASE;
 
 int timer_init(void)
 {
-	/* start the counter ticking up, reload value on overflow */
-	writel(TIMER_LOAD_VAL, &timer_base->tldr);
+	if (0 == readl(&timer_base->tclr))
+	{
+		/* start the counter ticking up, reload value on overflow */
+		writel(TIMER_LOAD_VAL, &timer_base->tldr);
 
-	/* enable timer */
-	writel(TCLR_ST, &timer_base->tclr);
-
+		/* enable timer */
+		writel(TCLR_ST, &timer_base->tclr);
+	}
 	/* reset time, capture current incrementer value time */
 	gd->arch.lastinc = readl(&timer_base->tcrr) / (TIMER_CLOCK / CONFIG_SYS_HZ);
 	gd->arch.tbl = 0;		/* start "advancing" time stamp from 0 */
@@ -103,3 +105,23 @@ ulong get_tbclk(void)
 {
 	return CONFIG_SYS_HZ;
 }
+
+#ifdef CONFIG_TRIX_TIMESTAMP
+/*
+ * return SoC timer value elapsed from power on.
+ * ascends at TIMER_CLOCK (200MHz)
+ */
+unsigned long get_arch_timestamp(void)
+{
+	return (TIMER_LOAD_VAL - readl(&timer_base->tcrr));
+}
+
+/*
+ * show SoC timer value
+ */
+void show_arch_timestamp(void)
+{
+	unsigned long now = get_arch_timestamp();
+	printf("timestamp:0x%08lx\n", now);
+}
+#endif

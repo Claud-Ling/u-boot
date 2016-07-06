@@ -333,6 +333,7 @@
 #ifdef CONFIG_TEST_S2RAM
 #   define CONFIG_CMD_S2RAM
 #   define CONFIG_S2RAM_CHECKSUM	/* checksum support (for debug) */
+#   define CONFIG_SIGMA_PM_UMAC_PHY    /* UMAC PHY PM support */
 #endif
 
 /* bootparam */
@@ -349,6 +350,11 @@
 /* mconfig */
 #ifdef CONFIG_SIGMA_MCONFIG
 #   define CONFIG_CMD_MPROBE
+#endif
+
+/* Use timer0 get high percision time stamp */
+#ifdef CONFIG_TRIX_TIMESTAMP
+#      define CONFIG_CMD_TIMESTAMP
 #endif
 
 #ifdef CONFIG_TRIX_NAND
@@ -413,9 +419,9 @@
     "rootfs_type=ramdisk\0" \
     "setup_rootfs=if itest.s ${rootfs_type} == nfs; then setenv rootfs ${nfs_rootfs}; else setenv rootfs ${ramdisk_rootfs}; fi\0" \
     "android_update_file=/mnt/update.zip\0"   \
-    "mconfig=n\0" /*triple state: 'y'-auto; 'm'-manual; 'n'-off*/\
+    "mconfig=y\0" /*triple state: 'y'-auto; 'm'-manual; 'n'-off*/\
     "msize=488\0" \
-    "prepare_memcfg=set do_memcfg set mem_config $\"{mem_config${msize}}\"\0" \
+    "prepare_memcfg=set do_memcfg set mem_config $\"{mem_config${msize}}\" msize=${msize}\0" \
     "set_memcfg=if itest.s ${mconfig} == y || itest.s ${mconfig} == m;then run prepare_memcfg do_memcfg;fi\0" \
     "bootmips=n\0" /*dual state: 'y'-enable; 'n'-disable*/\
     "start_bootmips=bootmips 700000:mmc\0" \

@@ -14,48 +14,26 @@
 
 #include <config.h>
 #include "s2ramctrl.h"
+#include "asm-offsets.h"
 #include "macro.S"
 
 #define DEBUG
 
 #ifdef DEBUG
-/*
- * r0 - return (0 - ok; other - nok)
- * r1 - ptr of string
- * output: string [ok] or [nok]
- */
-.macro trace_call
-	stmfd   sp!, {r0}
-	cmp	r0, #0
-	bne	1f
-	mov	r0, r1
-	bl	puts_asm
-	adr	r0, ok_stage
-	bl	puts_asm
-	b	2f
-1:
-	mov	r0, r1
-	bl	puts_asm
-	adr	r0, nok_stage
-	bl	puts_asm
-2:
-	ldmfd   sp!, {r0}
-.endm
-
 .macro trace_set_resume_entry
 	mov	r0, #0
 	adr	r1, resume_entry_stage
-	trace_call
+	bl	trace_call
 .endm
 
 .macro trace_in_selfrefresh
 	adr	r1, selfrefresh_stage
-	trace_call
+	bl	trace_call
 .endm
 
 .macro trace_system_poweroff
 	adr	r1, poweroff_stage
-	trace_call
+	bl	trace_call
 .endm
 
 .macro trace_enter_wfi
@@ -159,8 +137,29 @@ ENTRY(s2ramtest_do_s2ram)
 ENDPROC(s2ramtest_do_s2ram)
 
 #ifdef DEBUG
-resume_entry_stage: .ascii "set resume entry\r\n\0"
-.align 2
+/*
+ * r0 - return (0 - ok; other - nok)
+ * r1 - ptr of string
+ * output: string [ok] or [nok]
+ */
+ENTRY(trace_call)
+	stmfd   sp!, {r0, lr}
+	cmp	r0, #0
+	bne	1f
+	mov	r0, r1
+	bl	puts_asm
+	adr	r0, ok_stage
+	bl	puts_asm
+	b	2f
+1:
+	mov	r0, r1
+	bl	puts_asm
+	adr	r0, nok_stage
+	bl	puts_asm
+2:
+	ldmfd   sp!, {r0, pc}
+ENDPROC(trace_call)
+
 selfrefresh_stage: .ascii "sdram in selfrefresh\r\n\0"
 .align 2
 poweroff_stage: .ascii "power off\r\n\0"
@@ -172,8 +171,6 @@ nok_stage: .ascii "[failed]\r\n\0"
 wfi_stage: .ascii "execute wfi\r\n\0"
 .align 2
 error_stage: .ascii "error\r\n\0"
-.align 2
-resume_stage: .ascii "resume uboot\r\n\0"
 .align 2
 #endif
 
@@ -205,15 +202,18 @@ ENDPROC(puts_asm)
 uart_reg_base:
 	.word	0xfb005100
 
-#ifndef __UBOOT__
-#define __UBOOT__
-#endif
 #include "s2ramctrl.S"
 
 ENTRY(s2ramtest_do_s2ram_sz)
 	.word   . - s2ramtest_do_s2ram
 ENDPROC(s2ramtest_do_s2ram_sz)
 
+#ifdef DEBUG
+resume_entry_stage: .ascii "set resume entry\r\n\0"
+.align 2
+resume_stage: .ascii "resume uboot\r\n\0"
+.align 2
+#endif
 
 /*
  * void s2ramtest_do_resume(void);

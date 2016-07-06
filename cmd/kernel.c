@@ -284,6 +284,16 @@ int do_start_kernel (cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])
 			}
 		}
 #endif
+		/*msize add-ons*/
+		if (getenv("msize"))
+		{
+			const char* tmp = getenv("msize");
+			if ((sizeof(new_cmdline) - strlen(new_cmdline)) > (strlen(tmp) + 7))
+			{
+				strcat(new_cmdline, " msize=");
+				strcat(new_cmdline, tmp);
+			}
+		}
 		printf("cmdline passed to kernel = %s\n",new_cmdline);
 	
 		
