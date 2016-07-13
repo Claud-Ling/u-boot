@@ -78,6 +78,11 @@ config TRIX_TIMESTAMP
 	Use command 'showts' can show out soc timer value elapsed 
 	clock @200MHz in ascending order 
 
+config SIGMA_DTV_SECURITY
+	bool "Enable image authentication for sdegisn dtv"
+	help
+	Enable this feature for image authentication.
+
 endmenu
 endmenu
 config SYS_SOC
