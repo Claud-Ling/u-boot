@@ -117,7 +117,7 @@ void usb3_power_init(void)
 	MWriteRegHWord(0x1b005520, 0x4, 0xc);	//[3:2]=2'b01
 	MWriteRegHWord(0x1b005522, 0x2, 0x2);	//[1]=1'b1
 
-#elif defined(CONFIG_MACH_SIGMA_SX7)
+#elif defined(CONFIG_MACH_SIGMA_SX7) || defined(CONFIG_MACH_SIGMA_SX8)
 	/* Set GPIO9 pin as GPIO */
 	MWriteRegByte(0x1500ee22, 0x0, 0x70);
 
@@ -132,8 +132,6 @@ void usb3_power_init(void)
 
 	/* Set GPIO7 act as USB3_OC */
 	MWriteRegByte(0x1500ee21, 0x20, 0x70);
-#elif defined(CONFIG_MACH_SIGMA_SX8)
-	#warning "FIXME: SX8: add XHCI pinshare setting!!"
 #else
 	#error "Unknow SOC type!!"
 #endif

@@ -75,9 +75,22 @@ void usb2_power_init(void)
 	MWriteRegHWord(0x1b000178, 0x1300, 0xffff);
 	MWriteRegHWord(0x1b000180, 0x1310, 0xffff);
 #elif defined (CONFIG_MACH_SIGMA_SX8)
+	/*USB1 Power*/
+	/*Set GPIO4 functionally as GPIO*/
+	MWriteRegByte(0xf500ee20, 0x00, 0x07);
+	MWriteRegHWord(0xfb005500, 0x0100, 0x0300);
+		
+	/* Set GPIO4 output high */
+	MWriteRegHWord(0xfb005502, 0x0010, 0x0010);
+	
 
-#warning "FIXME: SX8: please setup USB2 pinshare!!"
-
+	/*USB2 Power*/
+	/*Set GPIO6 functionally as GPIO*/
+	MWriteRegByte(0xf500ee21, 0x00, 0x07);
+	MWriteRegHWord(0xfb005500, 0x1000, 0x3000);
+		
+	/* Set GPIO6 output high */
+	MWriteRegHWord(0xfb005502, 0x0040, 0x0040);
 #else
 #error "Unknow SOC type"
 #endif
