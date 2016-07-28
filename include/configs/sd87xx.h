@@ -120,6 +120,7 @@
 #	undef CONFIG_PHY_TERANETICS
 #	define CONFIG_PHY_VITESSE
 #	define CONFIG_PHY_ATHEROS
+#   define CONFIG_PHY_GIGE
 /* tangox devices */
 #	define CONFIG_TANGOX_SATA
 #	define CONFIG_TANGOX_USB
@@ -239,6 +240,8 @@
 #define CONFIG_CMD_MMC
 #define CONFIG_CMD_FAT
  
+#define CONFIG_CMD_MII
+
 /* supporing ARMOR shell */
 /* #define CONFIG_CMD_ARMORSHELL */
 

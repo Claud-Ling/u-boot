@@ -666,49 +666,109 @@ int board_mmc_init(bd_t *bd)
 #endif
 
 
-int board_phy_config(struct phy_device *phydev)
+static int ar8035_phy_fixup(struct phy_device *phydev)
 {
-#ifdef CONFIG_PHY_MICREL
+#define AR8031_MII_REG_LED_CONTROL				0x18
+#define AR8031_MII_REG_DEBUG_PORT_ADDR_OFFSET	0x1D
+#define AR8031_MII_REG_DEBUG_PORT_DATA			0x1E
+
+	int val = 0;
+
+	if (phydev == NULL)
+		return -1;
+
+	if ((phydev->phy_id < 0) || (phydev->addr < 0))
+		return -1;
+
+	/* Apply phy config only for AR8035 */
+	if (phydev->phy_id != 0x4dd072)
+		return -1;
+
+	/* enable regmii tx clock delay */
+	phy_write(phydev, MDIO_DEVAD_NONE, AR8031_MII_REG_DEBUG_PORT_ADDR_OFFSET, 0x5);
+	val = phy_read(phydev, MDIO_DEVAD_NONE, AR8031_MII_REG_DEBUG_PORT_DATA);
+	val |= (1 << 8);
+	phy_write(phydev, MDIO_DEVAD_NONE, AR8031_MII_REG_DEBUG_PORT_DATA, val);
+
+	phy_write(phydev, MDIO_DEVAD_NONE, AR8031_MII_REG_DEBUG_PORT_ADDR_OFFSET, 0xB);
+	phy_write(phydev, MDIO_DEVAD_NONE, AR8031_MII_REG_DEBUG_PORT_DATA, 0xbc20);
+
+	/* LED control */
+	phy_write(phydev, MDIO_DEVAD_NONE, AR8031_MII_REG_LED_CONTROL, 0x2100);
+
+	/*check phy power */
+	val = phy_read(phydev, MDIO_DEVAD_NONE, MII_BMCR);
+	if (val & BMCR_PDOWN)
+		phy_write(phydev, MDIO_DEVAD_NONE, MII_BMCR, (val & ~BMCR_PDOWN));
+
+	return 0;
+}
+
+static int ksz9031_phy_fixup(struct phy_device *phydev)
+{
 #define MBA6X_KSZ9031_CTRL_SKEW 0x0032
 #define MBA6X_KSZ9031_CLK_SKEW  0x0273
+
 #define MBA6X_KSZ9031_RX_SKEW   0x3333
 #define MBA6X_KSZ9031_TX_SKEW   0x2036
 
-	if ((phydev->phy_id < 0) || (phydev->addr < 0))
-	{
-		if (phydev->drv->config)
-			phydev->drv->config(phydev);
+#define MII_KSZ9031_EXT_FLP_BURST_TRANSMIT_LO	0x3
+#define MII_KSZ9031_EXT_FLP_BURST_TRANSMIT_HI	0x4
 
-		return 0;
-	}
+	if (phydev == NULL)
+		return -1;
+
+	if ((phydev->phy_id < 0) || (phydev->addr < 0))
+		return -1;
 
 	/* Apply phy config only for KSZ9031 */
 	if ((phydev->phy_id & 0xfffff0) != 0x221620)
-	{
-		if (phydev->drv->config)
-			phydev->drv->config(phydev);
+		return -1;
 
-		return 0;
-	}
+	/*
+	 * Change FLP
+	 * AN FLP Burst Transmit HI - devaddr = 0x00, register = 0x04
+	 * AN FLP Burst Transmit LO - devaddr = 0x00, register = 0x03
+	 */
+	ksz9031_phy_extended_write(phydev, 0x00,
+								MII_KSZ9031_EXT_FLP_BURST_TRANSMIT_HI,
+								MII_KSZ9031_MOD_DATA_NO_POST_INC,
+								0x0006);
+	ksz9031_phy_extended_write(phydev, 0x00,
+								MII_KSZ9031_EXT_FLP_BURST_TRANSMIT_LO,
+								MII_KSZ9031_MOD_DATA_NO_POST_INC,
+								0x1A80);
 
-	/* min rx/tx ctrl delay */
-	ksz9031_phy_extended_write(phydev, phydev->phy_id,
+	/*
+	 * min rx/tx ctrl delay
+	 * control data pad skew - devaddr = 0x02, register = 0x04
+	 */
+	ksz9031_phy_extended_write(phydev, 0x02,
 								MII_KSZ9031_EXT_RGMII_CTRL_SIG_SKEW,
 								MII_KSZ9031_MOD_DATA_NO_POST_INC,
 								MBA6X_KSZ9031_CTRL_SKEW);
-	/* min rx delay */
-	ksz9031_phy_extended_write(phydev, phydev->phy_id,
+	/*
+	 * min rx delay
+	 * rx data pad skew - devaddr = 0x02, register = 0x05
+	 */
+	ksz9031_phy_extended_write(phydev, 0x02,
 								MII_KSZ9031_EXT_RGMII_RX_DATA_SKEW,
 								MII_KSZ9031_MOD_DATA_NO_POST_INC,
 								MBA6X_KSZ9031_RX_SKEW);
-	/* max tx delay */
-	ksz9031_phy_extended_write(phydev, phydev->phy_id,
+	/*
+	 * max tx delay
+	 * tx data pad skew - devaddr = 0x02, register = 0x05
+	 */
+	ksz9031_phy_extended_write(phydev, 0x02,
 								MII_KSZ9031_EXT_RGMII_TX_DATA_SKEW,
 								MII_KSZ9031_MOD_DATA_NO_POST_INC,
 								MBA6X_KSZ9031_TX_SKEW);
 
-	/* rx/tx clk skew */
-	ksz9031_phy_extended_write(phydev, phydev->phy_id,
+	/*
+	 * rx/tx clk skew
+	 * gtx and rx clock pad skew - devaddr = 0x02, register = 0x08
+	 */
+	ksz9031_phy_extended_write(phydev, 0x02,
 								MII_KSZ9031_EXT_RGMII_CLOCK_SKEW,
 								MII_KSZ9031_MOD_DATA_NO_POST_INC,
 								MBA6X_KSZ9031_CLK_SKEW);
@@ -716,11 +776,40 @@ int board_phy_config(struct phy_device *phydev)
 	if (phydev->drv->config)
 		phydev->drv->config(phydev);
 
+	/*
+	 * Gigabit not working properly.
+	 * Remove 1000T speed from advertisement
+	 */
+	phy_write(phydev, MDIO_DEVAD_NONE, MII_CTRL1000, 0x1C00);
+
 	return 0;
-#else
+}
+
+
+int board_phy_config(struct phy_device *phydev)
+{
+	/* AR8035 */
+	if (ar8035_phy_fixup(phydev) == 0)
+	{
+		if (phydev->drv->config)
+			phydev->drv->config(phydev);
+
+		return 0;
+	}
+
+	/* KSZ9031 */
+	if (ksz9031_phy_fixup(phydev) == 0)
+	{
+		if (phydev->drv->config)
+			phydev->drv->config(phydev);
+
+		phy_write(phydev, MDIO_DEVAD_NONE, MII_CTRL1000, 0x1C00);
+
+		return 0;
+	}
+
 	if (phydev->drv->config)
 		phydev->drv->config(phydev);
 
 	return 0;
-#endif
 }
