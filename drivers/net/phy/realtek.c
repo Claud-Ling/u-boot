@@ -220,6 +220,18 @@ static int rtl8211f_startup(struct phy_device *phydev)
 	return 0;
 }
 
+/* Support for RTL8201x PHY */
+static struct phy_driver RTL8201x_driver = {
+	.name = "RealTek RTL8201",
+	.uid = 0x00008201,
+	.mask = 0x0000ffff,
+	.features = PHY_BASIC_FEATURES,
+	.config = &genphy_config,
+	.startup = &genphy_startup,
+	.shutdown = &genphy_shutdown,
+};
+
+
 /* Support for RTL8211B PHY */
 static struct phy_driver RTL8211B_driver = {
 	.name = "RealTek RTL8211B",
@@ -266,6 +278,7 @@ static struct phy_driver RTL8211F_driver = {
 
 int phy_realtek_init(void)
 {
+	phy_register(&RTL8201x_driver);
 	phy_register(&RTL8211B_driver);
 	phy_register(&RTL8211E_driver);
 	phy_register(&RTL8211F_driver);
