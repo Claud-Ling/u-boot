@@ -570,6 +570,23 @@ static int set_blk( int32_t argc, char **argv )
 	return rc;
 }
 
+int has_mbr( void )
+{
+    void *xenv_base = (void*)(REG_BASE_cpu_block + LR_XENV2_RW);
+    char *mbr_key = "mbr";
+    u32 mbr_val = 0;
+    u32 len = sizeof(int);
+    int ret;
+
+    ret = xenv_get((void *)xenv_base, MAX_XENV_SIZE, mbr_key, &mbr_val, (u32*)&len);
+
+    if( ret == RM_OK ) {
+        return mbr_val;
+    }
+    /* if there is no mbr key, the system has a mbr */
+    return 1;
+}
+
 /*
  * save modificatio into the nand flash
  * 
@@ -623,8 +640,16 @@ void commit_xenv( void )
         {
             u32 blk, cnt, n;
             void *addr;
-            
-            blk   = CONFIG_XENV_EMMC_OFFSET0;
+            u32 mbr_exist;
+
+            mbr_exist = has_mbr();
+
+            if( mbr_exist ) {
+                blk = CONFIG_XENV_EMMC_OFFSET0;
+            }
+            else {
+                blk = CONFIG_XENV_EMMC_OFFSET0 - 0x100;
+            }
             cnt   = ((*xenv_mem) + (512-1)) / 512;
             addr  = (void*)xenv_mem;
             
@@ -634,7 +659,12 @@ void commit_xenv( void )
             printf("Wrote %d blocks at 0x%x: %s\n",
                     n, blk, (n == cnt) ? "OK" : "ERROR");
 
-            blk   = CONFIG_XENV_EMMC_OFFSET1;
+            if( mbr_exist ) {
+                blk = CONFIG_XENV_EMMC_OFFSET1;
+            }
+            else {
+                blk = CONFIG_XENV_EMMC_OFFSET1 - 0x100;
+            }
 
             n = mmc->block_dev.block_write(&mmc->block_dev, blk,
                                   cnt, addr);
