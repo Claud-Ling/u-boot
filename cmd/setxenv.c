@@ -578,7 +578,7 @@ int has_mbr( void )
     u32 len = sizeof(int);
     int ret;
 
-    ret = xenv_get((void *)xenv_base, MAX_XENV_SIZE, mbr_key, &mbr_val, (u32*)&len);
+    ret = xenv_get((void *)xenv_base, MAX_LR_XENV2_RW, mbr_key, &mbr_val, (u32*)&len);
 
     if( ret == RM_OK ) {
         return mbr_val;
