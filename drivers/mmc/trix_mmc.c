@@ -90,7 +90,8 @@ int monza_sdhi_init(u32 regbase,  u32 quirks)
 
 	/* Host support high capacity */
 //	host->host_caps = MMC_MODE_HC;
-	host->host_caps = MMC_MODE_DDR_52MHz;
+//	host->host_caps = MMC_MODE_DDR_52MHz;
+	host->host_caps = MMC_MODE_HS_52MHz | MMC_MODE_HS | MMC_MODE_8BIT | MMC_MODE_DDR_52MHz;
 
 	/* Host support UHS DDR mode */
 //	host->host_caps |= MMC_MODE_UHS_DDR50;

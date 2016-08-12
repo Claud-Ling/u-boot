@@ -412,7 +412,7 @@
         " androidboot.hardware=sx6 ethaddr=${ethaddr} ${emmc_partitions} ${armor_config}\0" \
     "start_normal=mmc read 8000000 1B800 ${boot_size};boota 8000000\0"    \
     "start_recovery=mmc read 8000000 3800 18000;boota 8000000\0"  \
-    "check_bmode=run check_bmips;run set_memcfg check_mmc_mode set_bootargs;if itest.s ${bootmode} == normalmode; then "   \
+    "check_bmode=run check_bmips;run set_memcfg setup_rootfs set_bootargs;if itest.s ${bootmode} == normalmode; then "   \
         "run start_normal; else "    \
         "run start_recovery; fi\0"  \
     "bootmode=normalmode\0" \
@@ -429,7 +429,7 @@
     "usbport=1\0" \
     "usb_update=dcache off;armor cfg;set update_method USB;usb reset;if fatload usb 0 4000000 fs.sys;then "	\
 	"source 4000000;else dcache on;run bootcmd; fi;" \
-        "if fatload usb 0 4000000 safe-kernel.img1; then crc_start_kernel 4000000 fscmdline;"	\
+        "if fatload usb 0 4000000 safe-kernel.img1; then boota 4000000;"	\
 	"else dcache on;run bootcmd;fi\0"         \
     ""
 #endif
