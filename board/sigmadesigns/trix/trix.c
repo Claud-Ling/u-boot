@@ -98,6 +98,13 @@ int board_eth_init(bd_t *bis)
 	WriteRegByte(0xf500ea31, 0x7f);	//GBE_TXD3
 	WriteRegByte(0xf500ea38, 0x7f);	//GBE_MDC
 #elif defined(CONFIG_MACH_SIGMA_SX8)
+	WriteRegHWord(0xf500e030, 0x103f); //[0]GBE_TXEN_OE
+																		 //[1]GBE_TXC_OE
+																		 //[2]GBE_TXD0_OE
+																		 //[3]GBE_TXD1_OE
+																		 //[4]GBE_TXD2_OE
+																		 //[5]GBE_TXD3_OE
+																		 //[12]GBE_MDC_OE
 	#warning "FIXME: SX8: Add code for ethernet init!"
 #endif
 
