@@ -305,6 +305,19 @@ static int sdhci_set_clock(struct mmc *mmc, unsigned int clock)
 		udelay(100);
 	}
 
+
+	if (clock == 52000000) {
+		if (mmc->ddr_mode) {
+			printf("Set eMMC DDR50 TAP delay\n");
+			writel( (readl(0xfb00a400) & ~0x1fff) | 0x1600, 0xfb00a400 );
+			
+		} else {
+			/*For SDR mode tap delay */
+			printf("Set eMMC SDR50 TAP delay\n");
+			writel( (readl(0xfb00a400) & ~0x1f00) | 0x1600, 0xfb00a400 );
+		}
+	}
+
 	reg = sdhci_readw(host, SDHCI_CLOCK_CONTROL);
 	reg &= ~SDHCI_CLOCK_CARD_EN;
 	sdhci_writew(host, reg, SDHCI_CLOCK_CONTROL);
@@ -428,6 +441,34 @@ static void sdhci_set_ios(struct mmc *mmc)
 		ctrl &= ~SDHCI_CTRL_HISPD;
 
 	sdhci_writeb(host, ctrl, SDHCI_HOST_CONTROL);
+
+#if defined(CONFIG_TRIX_MMC)
+	/* Disable clock */
+	sdhci_set_clock(mmc, 0);
+
+	//TODO: Currently just support DDR50 mode, for further
+	//improvement need support other speed mode.
+
+	if (SDHCI_GET_VERSION(host) >= SDHCI_SPEC_300) {
+		u32 ctrl2;
+
+		ctrl2 = sdhci_readw(host, SDHCI_HOST_CONTROL2);
+		ctrl2 &= ~SDHCI_CTRL_UHS_MASK;
+		
+		/* Enable UHS DDR timing */
+		if (mmc->ddr_mode) {
+			ctrl2 |= SDHCI_CTRL_UHS_DDR50;
+			ctrl |= SDHCI_CTRL_HISPD;
+		}
+
+		sdhci_writeb(host, ctrl, SDHCI_HOST_CONTROL);
+		sdhci_writew(host, ctrl2, SDHCI_HOST_CONTROL2);
+
+	}
+	/* Enable clock */
+	sdhci_set_clock(mmc, mmc->clock);
+
+#endif
 }
 
 static int sdhci_init(struct mmc *mmc)
