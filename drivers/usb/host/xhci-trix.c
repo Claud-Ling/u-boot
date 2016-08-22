@@ -109,6 +109,10 @@ void usb3_power_init(void)
 
 #elif defined(CONFIG_MACH_SIGMA_SX8)
 	#warning "FIXME: SX8: Add code for XHCI controller init!!"
+	/* Disable USB3 PHY Scramble */
+	MWriteRegWord(XHCI_REG(TRIX_USB3_TEST_DBG_REG), 0x00202087, 0x00ffffff);
+	MWriteRegWord(XHCI_REG(TRIX_USB3_TEST_DBG_REG), 0x00302087, 0x00ffffff);
+	MWriteRegWord(XHCI_REG(TRIX_USB3_TEST_DBG_REG), 0x00202087, 0x00ffffff);
 #endif
 
 #ifdef CONFIG_MACH_SIGMA_SX6

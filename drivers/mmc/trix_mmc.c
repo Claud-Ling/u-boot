@@ -56,11 +56,11 @@ static int sdh_pinshare_init(void)
 	MWriteRegByte(0x1500ee2d, 0x01, 0x03);
 
 #elif defined (CONFIG_MACH_SIGMA_SX8)
-	MWriteRegByte(0x1500ee2e, 0x11, 0x33);	//bit[6:4]data1,bit[2:0]data0
-	MWriteRegByte(0x1500ee2f, 0x11, 0x33);	//bit[6:4]data3,bit[2:0]data2
-	MWriteRegByte(0x1500ee30, 0x11, 0x33);	//bit[6:4]data5,bit[2:0]data4
-	MWriteRegByte(0x1500ee31, 0x11, 0x33);	//bit[6:4]data7,bit[2:0]data6
-	MWriteRegByte(0x1500ee32, 0x11, 0x33);	//bit[6:4]cmd,bit[2:0]clk
+	MWriteRegByte(0x1500ee2e, 0x11, 0x77);	//bit[6:4]data1,bit[2:0]data0
+	MWriteRegByte(0x1500ee2f, 0x11, 0x77);	//bit[6:4]data3,bit[2:0]data2
+	MWriteRegByte(0x1500ee30, 0x11, 0x77);	//bit[6:4]data5,bit[2:0]data4
+	MWriteRegByte(0x1500ee31, 0x11, 0x77);	//bit[6:4]data7,bit[2:0]data6
+	MWriteRegByte(0x1500ee32, 0x11, 0x77);	//bit[6:4]cmd,bit[2:0]clk
 #else
 	#error "unknown chip!!"
 #endif

@@ -314,7 +314,7 @@ static int sdhci_set_clock(struct mmc *mmc, unsigned int clock)
 		} else {
 			/*For SDR mode tap delay */
 			printf("Set eMMC SDR50 TAP delay\n");
-			writel( (readl(0xfb00a400) & ~0x1f00) | 0x1600, 0xfb00a400 );
+			writel( (readl(0xfb00a400) & ~0x1f00) | 0x1c00, 0xfb00a400 );
 		}
 	}
 

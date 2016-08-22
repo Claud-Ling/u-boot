@@ -1043,7 +1043,18 @@ struct xhci_erst {
  * (1K bytes * 8bytes/bit) / (4*32 bits) = 64 segment entries in the table,
  * meaning 64 ring segments.
  * Initial allocated size of the ERST, in number of entries */
+#if defined(CONFIG_MACH_SIGMA_SX8)
+/*
+ * Some kind of XHCI controller may not have so much segments
+ * But at least have one segments. 
+ * Make this definition as Linux Kernel(refer to drivers/usb/host/xhci.h).
+ * XXX: SX8 USB3.0 MAC(GDA) only have one 'Event Ring' segment,
+ * For how many segments support, please refer to register hcsparams2[7:4]
+ */
+#define	ERST_NUM_SEGS	1
+#else
 #define	ERST_NUM_SEGS	3
+#endif
 /* Initial number of event segment rings allocated */
 #define	ERST_ENTRIES	3
 /* Initial allocated size of the ERST, in number of entries */
