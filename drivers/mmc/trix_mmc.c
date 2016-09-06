@@ -56,6 +56,18 @@ static int sdh_pinshare_init(void)
 	MWriteRegByte(0x1500ee2d, 0x01, 0x03);
 
 #elif defined (CONFIG_MACH_SIGMA_SX8)
+	/* REG_MIO setting, disable default pull-down */
+	MWriteRegByte(0x1500ea76, 0x7b, 0x7f);	//FAD0 [0]:IE [1]:ST [2]:PU [3]:PD [4]:DS0 [5]:DS1 [6]:DS2 
+	MWriteRegByte(0x1500ea77, 0x7b, 0x7f);	//FAD1 [0]:IE [1]:ST [2]:PU [3]:PD [4]:DS0 [5]:DS1 [6]:DS2 
+	MWriteRegByte(0x1500ea78, 0x7b, 0x7f);	//FAD2 [0]:IE [1]:ST [2]:PU [3]:PD [4]:DS0 [5]:DS1 [6]:DS2 
+	MWriteRegByte(0x1500ea79, 0x7b, 0x7f);	//FAD3 [0]:IE [1]:ST [2]:PU [3]:PD [4]:DS0 [5]:DS1 [6]:DS2 
+	MWriteRegByte(0x1500ea7a, 0x7b, 0x7f);	//FAD4 [0]:IE [1]:ST [2]:PU [3]:PD [4]:DS0 [5]:DS1 [6]:DS2 
+	MWriteRegByte(0x1500ea7b, 0x7b, 0x7f);	//FAD5 [0]:IE [1]:ST [2]:PU [3]:PD [4]:DS0 [5]:DS1 [6]:DS2 
+	MWriteRegByte(0x1500ea7c, 0x7b, 0x7f);	//FAD6 [0]:IE [1]:ST [2]:PU [3]:PD [4]:DS0 [5]:DS1 [6]:DS2 
+	MWriteRegByte(0x1500ea7d, 0x7b, 0x7f);	//FAD7 [0]:IE [1]:ST [2]:PU [3]:PD [4]:DS0 [5]:DS1 [6]:DS2 
+	MWriteRegByte(0x1500ea7e, 0x7b, 0x7f);	//CLE [0]:IE [1]:ST [2]:PU [3]:PD [4]:DS0 [5]:DS1 [6]:DS2 
+	MWriteRegByte(0x1500ea7f, 0x7b, 0x7f);	//ALE [0]:IE [1]:ST [2]:PU [3]:PD [4]:DS0 [5]:DS1 [6]:DS2
+ 
 	MWriteRegByte(0x1500ee2e, 0x11, 0x77);	//bit[6:4]data1,bit[2:0]data0
 	MWriteRegByte(0x1500ee2f, 0x11, 0x77);	//bit[6:4]data3,bit[2:0]data2
 	MWriteRegByte(0x1500ee30, 0x11, 0x77);	//bit[6:4]data5,bit[2:0]data4
