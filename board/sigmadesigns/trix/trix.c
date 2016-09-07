@@ -89,7 +89,7 @@ int board_eth_init(bd_t *bis)
 	tmp = ReadRegByte(0xf500ec17);
 	tmp |= 0x8; //bit3 = 1 enable REFCLK for sx6 revb,50MHz clock output
 	WriteRegByte(0xf500ec17, tmp);
-#ifdef CONFIG_MACH_SIGMA_SX7
+#ifdef CONFIG_SIGMA_SOC_SX7
 	WriteRegByte(0xf500ea2c, 0x7f);	//GBE_TXEN
 	WriteRegByte(0xf500ea2d, 0x7f);	//GBE_TXC
 	WriteRegByte(0xf500ea2e, 0x7f);	//GBE_TXD0
@@ -97,15 +97,14 @@ int board_eth_init(bd_t *bis)
 	WriteRegByte(0xf500ea30, 0x7f);	//GBE_TXD2
 	WriteRegByte(0xf500ea31, 0x7f);	//GBE_TXD3
 	WriteRegByte(0xf500ea38, 0x7f);	//GBE_MDC
-#elif defined(CONFIG_MACH_SIGMA_SX8)
-	WriteRegHWord(0xf500e030, 0x103f); //[0]GBE_TXEN_OE
-																		 //[1]GBE_TXC_OE
-																		 //[2]GBE_TXD0_OE
-																		 //[3]GBE_TXD1_OE
-																		 //[4]GBE_TXD2_OE
-																		 //[5]GBE_TXD3_OE
-																		 //[12]GBE_MDC_OE
-	#warning "FIXME: SX8: Add code for ethernet init!"
+#elif defined(CONFIG_SIGMA_SOC_SX8)
+	WriteRegHWord(0xf500e030, 0x103f); 	//[0]GBE_TXEN_OE
+						//[1]GBE_TXC_OE
+						//[2]GBE_TXD0_OE
+						//[3]GBE_TXD1_OE
+						//[4]GBE_TXD2_OE
+						//[5]GBE_TXD3_OE
+						//[12]GBE_MDC_OE
 #endif
 
 	/* Initialize Designware Ethernet Controller */
@@ -191,14 +190,14 @@ int board_late_init(void)
 	 * for system security, we invalidate UART RXD pin
 	 * to disable console input from now on (neither in Linux shell)
 	 */
-#ifdef CONFIG_MACH_SIGMA_SX7
+#ifdef CONFIG_SIGMA_SOC_SX7
 		MWriteRegByte(0xf500ea4d , 0x0 ,0x1); /* disable internal input buffer */
-#elif defined(CONFIG_MACH_SIGMA_SX6)
+#elif defined(CONFIG_SIGMA_SOC_SX6)
 		MWriteRegByte(0xf500ee1b , 0x6 ,0x7); /* set pin RXD as bidirectional gpio */
 		MWriteRegByte(0xf500ea11 , 0x0 ,0x1); /* disable internal input buffer */
-#elif defined(CONFIG_MACH_SIGMA_UXLB)
+#elif defined(CONFIG_SIGMA_SOC_UXLB)
 		//TODO
-#elif defined(CONFIG_MACH_SIGMA_SX8)
+#elif defined(CONFIG_SIGMA_SOC_SX8)
 		#warning "FIXME: SX8: Set disable UART pinshare in secure case!!"
 #endif
 		/* Cleanup UART FIFO */

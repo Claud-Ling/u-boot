@@ -7,11 +7,11 @@
 #include <asm/arch/reg_io.h>
 
 
-#if defined (CONFIG_MACH_SIGMA_SX6) || defined (CONFIG_MACH_SIGMA_SX7) || defined (CONFIG_MACH_SIGMA_SX8)
+#if defined (CONFIG_SIGMA_SOC_SX6) || defined (CONFIG_SIGMA_SOC_SX7) || defined (CONFIG_SIGMA_SOC_SX8)
 #define USB0_BASE  0xf502f000
 #define USB1_BASE  0xfb008000
 
-#elif defined (CONFIG_MACH_SIGMA_UXLB)
+#elif defined (CONFIG_SIGMA_SOC_UXLB)
 #define USB0_BASE  0xfb003000
 #define USB1_BASE  0xfb007000
 
@@ -21,7 +21,7 @@
 
 void usb2_power_init(void)
 {
-#if defined (CONFIG_MACH_SIGMA_SX6) || defined (CONFIG_MACH_SIGMA_SX7)
+#if defined (CONFIG_SIGMA_SOC_SX6) || defined (CONFIG_SIGMA_SOC_SX7)
 	/* Set GPIO16 functionally as GPIO */
 	MWriteRegByte(0xf500ee23, 0x00, 0x70);
 	MWriteRegHWord(0xfb005540, 0x0001, 0x0003);
@@ -39,7 +39,7 @@ void usb2_power_init(void)
 	/*usb2 clock control*/
 	WriteRegByte(0xf500e84d, 0x08);
 
-#elif defined (CONFIG_MACH_SIGMA_UXLB)
+#elif defined (CONFIG_SIGMA_SOC_UXLB)
 
 	/* Set GPIO7 output high */
 	MWriteRegHWord(0x1b0055a0, 0x4000, 0x4000);
@@ -74,7 +74,7 @@ void usb2_power_init(void)
 	/* Tuning USB PHY */
 	MWriteRegHWord(0x1b000178, 0x1300, 0xffff);
 	MWriteRegHWord(0x1b000180, 0x1310, 0xffff);
-#elif defined (CONFIG_MACH_SIGMA_SX8)
+#elif defined (CONFIG_SIGMA_SOC_SX8)
 	/*USB1 Power*/
 	/*Set GPIO4 functionally as GPIO*/
 	MWriteRegByte(0xf500ee20, 0x00, 0x07);

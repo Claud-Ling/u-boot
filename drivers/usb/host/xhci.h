@@ -1043,7 +1043,7 @@ struct xhci_erst {
  * (1K bytes * 8bytes/bit) / (4*32 bits) = 64 segment entries in the table,
  * meaning 64 ring segments.
  * Initial allocated size of the ERST, in number of entries */
-#if defined(CONFIG_MACH_SIGMA_SX8)
+#if defined(CONFIG_SIGMA_SOC_SX8)
 /*
  * Some kind of XHCI controller may not have so much segments
  * But at least have one segments. 

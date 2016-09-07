@@ -74,7 +74,7 @@ DECLARE_GLOBAL_DATA_PTR;
 
 void usb3_power_init(void)
 {
-#if defined(CONFIG_MACH_SIGMA_SX6) || defined(CONFIG_MACH_SIGMA_SX7)
+#if defined(CONFIG_SIGMA_SOC_SX6) || defined(CONFIG_SIGMA_SOC_SX7)
 	/* Reset USB Host will be down after xhci_hcd_init, so comment here */
 	//MWriteRegWord((volatile void*)0x15200020, 0x2,0x2);
 	//MWriteRegWord(XHCI_REG(TRIX_USB3_USBCMD), TRIX_USB3_USBCMD_HCRST, TRIX_USB3_USBCMD_HCRST_MASK);
@@ -107,21 +107,20 @@ void usb3_power_init(void)
 	/* Enable PHY power */
 	MWriteRegWord(XHCI_REG(TRIX_USB3_TEST_DBG_REG), 0x00000000, 0xc0000000);
 
-#elif defined(CONFIG_MACH_SIGMA_SX8)
-	#warning "FIXME: SX8: Add code for XHCI controller init!!"
+#elif defined(CONFIG_SIGMA_SOC_SX8)
 	/* Disable USB3 PHY Scramble */
 	MWriteRegWord(XHCI_REG(TRIX_USB3_TEST_DBG_REG), 0x00202087, 0x00ffffff);
 	MWriteRegWord(XHCI_REG(TRIX_USB3_TEST_DBG_REG), 0x00302087, 0x00ffffff);
 	MWriteRegWord(XHCI_REG(TRIX_USB3_TEST_DBG_REG), 0x00202087, 0x00ffffff);
 #endif
 
-#ifdef CONFIG_MACH_SIGMA_SX6
+#ifdef CONFIG_SIGMA_SOC_SX6
 	MWriteRegByte(0x1500ee20, 0x0, 0x7);	//[2:0]=3'b000
 	MWriteRegByte(0x1500ee87, 0x4, 0x4);	//[2]=1'b1
 	MWriteRegHWord(0x1b005520, 0x4, 0xc);	//[3:2]=2'b01
 	MWriteRegHWord(0x1b005522, 0x2, 0x2);	//[1]=1'b1
 
-#elif defined(CONFIG_MACH_SIGMA_SX7) || defined(CONFIG_MACH_SIGMA_SX8)
+#elif defined(CONFIG_SIGMA_SOC_SX7) || defined(CONFIG_SIGMA_SOC_SX8)
 	/* Set GPIO9 pin as GPIO */
 	MWriteRegByte(0x1500ee22, 0x0, 0x70);
 

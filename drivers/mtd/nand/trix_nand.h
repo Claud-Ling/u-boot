@@ -95,7 +95,7 @@
 #define REG_BCH_ECC_DATA_a              REG_BCH_ECC_MAP(0x38)
 #define REG_BCH_ECC_DATA_b              REG_BCH_ECC_MAP(0x3C)
 
-#ifndef CONFIG_MACH_SIGMA_UXLB
+#ifndef CONFIG_SIGMA_SOC_UXLB
 # define REG_BCH_ECC_CORRECTION_0        REG_BCH_ECC_MAP(0x60)
 #else
 # define REG_BCH_ECC_CORRECTION_0        REG_BCH_ECC_MAP(0x50)

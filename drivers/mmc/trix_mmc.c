@@ -7,7 +7,7 @@
 
 static int sdh_pinshare_init(void)
 {
-#ifdef CONFIG_MACH_SIGMA_SX6
+#ifdef CONFIG_SIGMA_SOC_SX6
 
 	/*
 	 * bit[6:4] = 001	SDIO data 1
@@ -47,7 +47,7 @@ static int sdh_pinshare_init(void)
 	 */
 	MWriteRegByte(0x1500ee41, 0x10, 0x10);
 
-#elif defined (CONFIG_MACH_SIGMA_SX7)
+#elif defined (CONFIG_SIGMA_SOC_SX7)
 	MWriteRegByte(0x1500ee27, 0x10, 0x70);
 	WriteRegByte(0x1500ee29, 0x11);
 	WriteRegByte(0x1500ee2a, 0x11);
@@ -55,7 +55,7 @@ static int sdh_pinshare_init(void)
 	WriteRegByte(0x1500ee2c, 0x11);
 	MWriteRegByte(0x1500ee2d, 0x01, 0x03);
 
-#elif defined (CONFIG_MACH_SIGMA_SX8)
+#elif defined (CONFIG_SIGMA_SOC_SX8)
 	/* REG_MIO setting, disable default pull-down */
 	MWriteRegByte(0x1500ea76, 0x7b, 0x7f);	//FAD0 [0]:IE [1]:ST [2]:PU [3]:PD [4]:DS0 [5]:DS1 [6]:DS2 
 	MWriteRegByte(0x1500ea77, 0x7b, 0x7f);	//FAD1 [0]:IE [1]:ST [2]:PU [3]:PD [4]:DS0 [5]:DS1 [6]:DS2 
@@ -67,7 +67,8 @@ static int sdh_pinshare_init(void)
 	MWriteRegByte(0x1500ea7d, 0x7b, 0x7f);	//FAD7 [0]:IE [1]:ST [2]:PU [3]:PD [4]:DS0 [5]:DS1 [6]:DS2 
 	MWriteRegByte(0x1500ea7e, 0x7b, 0x7f);	//CLE [0]:IE [1]:ST [2]:PU [3]:PD [4]:DS0 [5]:DS1 [6]:DS2 
 	MWriteRegByte(0x1500ea7f, 0x7b, 0x7f);	//ALE [0]:IE [1]:ST [2]:PU [3]:PD [4]:DS0 [5]:DS1 [6]:DS2
- 
+
+	/*pinshares*/
 	MWriteRegByte(0x1500ee2e, 0x11, 0x77);	//bit[6:4]data1,bit[2:0]data0
 	MWriteRegByte(0x1500ee2f, 0x11, 0x77);	//bit[6:4]data3,bit[2:0]data2
 	MWriteRegByte(0x1500ee30, 0x11, 0x77);	//bit[6:4]data5,bit[2:0]data4

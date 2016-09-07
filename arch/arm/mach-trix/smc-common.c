@@ -70,10 +70,10 @@ struct secure_reg_access {
  */
 static struct secure_reg_access reg_access_tbl[] =
 {
-#if defined(CONFIG_MACH_SIGMA_SX6) || defined(CONFIG_MACH_SIGMA_SX7) || defined(CONFIG_MACH_SIGMA_SX8)
+#if defined(CONFIG_SIGMA_SOC_SX6) || defined(CONFIG_SIGMA_SOC_SX7) || defined(CONFIG_SIGMA_SOC_SX8)
 	{0xf5005000, 0xfffff000, OP_ACCESS_RD | OP_ACCESS_WR},	/* PMAN_SEC0 (4k) */
 	{0xf5008000, 0xfffff000, OP_ACCESS_RD | OP_ACCESS_WR},	/* PMAN_SEC1 (4k) */
-# ifndef CONFIG_MACH_SIGMA_SX6
+# ifndef CONFIG_SIGMA_SOC_SX6
 	{0xf5036000, 0xfffff000, OP_ACCESS_RD | OP_ACCESS_WR},	/* PMAN_SEC2 (4k) */
 # endif
 	{0xf5002000, 0xfffff000, OP_ACCESS_RD},			/* PLF_MMIO_Security (4k) */
@@ -82,9 +82,9 @@ static struct secure_reg_access reg_access_tbl[] =
 	{0xf0017000, 0xfffff000, OP_ACCESS_RD | OP_ACCESS_WR},	/* AV_MMIO_Configure (4k) */
 	{0xfa000000, 0xfffff000, OP_ACCESS_RD},			/* DISP_MMIO_Security (4k) */
 	{0xfa001000, 0xfffff000, OP_ACCESS_RD | OP_ACCESS_WR},	/* DISP_MMIO_Configure (4k) */
-# ifdef CONFIG_MACH_SIGMA_SX6
+# ifdef CONFIG_SIGMA_SOC_SX6
 	{0xf5100000, 0xfffe0000, OP_ACCESS_RD | OP_ACCESS_WR},	/* Turing (128k) */
-# elif defined(CONFIG_MACH_SIGMA_SX7) || defined(CONFIG_MACH_SIGMA_SX8)
+# elif defined(CONFIG_SIGMA_SOC_SX7) || defined(CONFIG_SIGMA_SOC_SX8)
 	{0xf1040000, 0xfffe0000, OP_ACCESS_RD | OP_ACCESS_WR},	/* Turing (128k) */
 # endif
 #endif
@@ -124,7 +124,7 @@ static int is_execute_in_secure_state(void)
 
 int secure_get_security_state(void)
 {
-#if defined(CONFIG_MACH_SIGMA_SX6) || defined(CONFIG_MACH_SIGMA_SX7) || defined(CONFIG_MACH_SIGMA_SX8)
+#if defined(CONFIG_SIGMA_SOC_SX6) || defined(CONFIG_SIGMA_SOC_SX7) || defined(CONFIG_SIGMA_SOC_SX8)
 	security_state = is_execute_in_secure_state();
 #else
 # ifdef CONFIG_DTV_BOOTPARAM

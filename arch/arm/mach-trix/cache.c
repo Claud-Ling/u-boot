@@ -502,7 +502,7 @@ static void sx6_l2x0_init(void)
 	const char *type;
 	void __iomem *base = l2cache_base;
 
-#ifdef CONFIG_MACH_SIGMA_SX6
+#ifdef CONFIG_SIGMA_SOC_SX6
 	/*
 	* SX6 L2CC: PL310@r3p2, 512K, 16ways, 32K per ways
 	* Tag laterncy: 0, Data latency: 0
@@ -517,7 +517,7 @@ static void sx6_l2x0_init(void)
 			(1 << L2X0_AUX_CTRL_DATA_PREFETCH_SHIFT) |	//bit 28: 1 data prefetching enabled
 			(1 << L2X0_AUX_CTRL_INSTR_PREFETCH_SHIFT) |	//bit 29: 1 instruction prefetch enabled
 			(1 << L2X0_AUX_CTRL_EARLY_BRESP_SHIFT));	//bit 30: 1 early BRESP eanbled
-#elif defined (CONFIG_MACH_SIGMA_SX7)
+#elif defined (CONFIG_SIGMA_SOC_SX7)
 	/*
 	* SX7 L2CC: PL310@r3p2, 1024K, 16ways, 64K per ways
 	* Tag laterncy: 0, Data latency: 0
@@ -534,12 +534,11 @@ static void sx6_l2x0_init(void)
 			(1 << L2X0_AUX_CTRL_EARLY_BRESP_SHIFT));	//bit 30: 1 early BRESP eanbled
 
 
-#elif defined (CONFIG_MACH_SIGMA_SX8)
+#elif defined (CONFIG_SIGMA_SOC_SX8)
 	/*
 	* SX8 L2CC: PL310@r3p2, 1024K, 16ways, 64K per ways
 	* Tag laterncy: 0, Data latency: 0
 	*/
-	#warning "FIXME: SX8: Please update L2 cache configuration"
 	aux_val = ((1 << L2X0_AUX_CTRL_ASSOCIATIVITY_SHIFT) |		//bit 16: 1 for 16 ways
 			(0x3 << L2X0_AUX_CTRL_WAY_SIZE_SHIFT) |		//bit 19-17: 011b 64KB, 010b 32KB
 			(1 << L2X0_AUX_CTRL_SHARE_OVERRIDE_SHIFT) |     //bit 22: 1 shared attribute internally ignored.

@@ -4,7 +4,7 @@
  * Proprietary and Confidential
  *
  * This file is to define register files to describe
- * UMAC_IP_2034 and UMAC_IP_2037 of SX6/SX7/UXLB onwards
+ * UMAC_IP_2034 and UMAC_IP_2037 of SX6/SX7/UXLB/SX8 onwards
  * DTV SoC chipsets.
  *
  * The host can override PMAN_IP_1820_CON base address by
@@ -363,8 +363,10 @@ typedef union _tagPMAN_CON_HUB_ADDRReg {
 
 /*PMAN_IP_1820_CON*/
 struct pman_con{
+#if defined(CONFIG_SIGMA_SOC_SX7)
+# define PMAN_HUB_REMAP
 	volatile U32 pad0[NW(0x000,0x030)];	/* +0x000 */
-	volatile PMAN_CON_HUB_ADDRReg hub0_start_addr;	/* +0x030,sx7 onwords */
+	volatile PMAN_CON_HUB_ADDRReg hub0_start_addr;	/* +0x030 */
 	volatile PMAN_CON_HUB_ADDRReg hub0_end_addr;	/* +0x034 */
 	volatile PMAN_CON_HUB_ADDRReg hub1_start_addr;	/* +0x038 */
 	volatile PMAN_CON_HUB_ADDRReg hub1_end_addr;	/* +0x03c */
@@ -372,6 +374,24 @@ struct pman_con{
 	volatile PMAN_CON_HUB_ADDRReg hub2_end_addr;	/* +0x044 */
 	volatile U32 pad1[NW(0x048,0xffc)];	/* +0x048 */
 	volatile U32 module_id;			/* +0xffc */
+#elif defined (CONFIG_SIGMA_SOC_SX8)
+# define PMAN_HUB_REMAP
+	volatile U32 pad0[NW(0x000,0x03c)];	/* +0x000 */
+	volatile PMAN_CON_HUB_ADDRReg hub0_start_addr;	/* +0x03c */
+	volatile PMAN_CON_HUB_ADDRReg hub0_end_addr;	/* +0x040 */
+	volatile PMAN_CON_HUB_ADDRReg hub1_start_addr;	/* +0x044 */
+	volatile PMAN_CON_HUB_ADDRReg hub1_end_addr;	/* +0x048 */
+	volatile PMAN_CON_HUB_ADDRReg hub2_start_addr;	/* +0x04c */
+	volatile PMAN_CON_HUB_ADDRReg hub2_end_addr;	/* +0x050 */
+	volatile U32 pad1[NW(0x054,0xffc)];	/* +0x054 */
+	volatile U32 module_id;			/* +0xffc */
+#else
+# undef PMAN_HUB_REMAP
+# if !defined(CONFIG_SIGMA_SOC_SX6) && !defined(CONFIG_SIGMA_SOC_UXLB)
+	#warning "unknown chipset, pman_con is disabled"
+# endif
+	volatile U32 dummy;	/* dummy used to pass compiling */
+#endif
 };
 
 /**
@@ -387,6 +407,7 @@ static inline const U32 umac_get_addr(int uid)
 #	endif
 	const struct umac_device* dev=umac_get_dev_by_id(uid);
 	if (dev != NULL) {
+# ifdef PMAN_HUB_REMAP
 		if (dev->quirks & UMAC_QUIRK_VARIABLE_ADDR) {
 			const volatile PMAN_CON_HUB_ADDRReg *hub_start;
 			const struct pman_con *con =
@@ -396,6 +417,9 @@ static inline const U32 umac_get_addr(int uid)
 		} else {
 			return dev->addr;
 		}
+# else /*PMAN_HUB_REMAP*/
+		return dev->addr;
+# endif /*PMAN_HUB_REMAP*/
 	} else {
 		return 0;	/*return zero though it's not good*/
 	}

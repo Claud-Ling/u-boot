@@ -12,11 +12,11 @@ static void __iomem *otp_base = NULL;
 #define BIT(x) (1 << (x))
 #endif
 
-#if defined(CONFIG_MACH_SIGMA_SX6) || defined(CONFIG_MACH_SIGMA_SX7) || defined(CONFIG_MACH_SIGMA_SX8)
+#if defined(CONFIG_SIGMA_SOC_SX6) || defined(CONFIG_SIGMA_SOC_SX7) || defined(CONFIG_SIGMA_SOC_SX8)
 
-#ifdef CONFIG_MACH_SIGMA_SX6
+#ifdef CONFIG_SIGMA_SOC_SX6
 # define TURING_REG_BASE 0xf5100000
-#elif defined(CONFIG_MACH_SIGMA_SX7) || defined(CONFIG_MACH_SIGMA_SX8)
+#elif defined(CONFIG_SIGMA_SOC_SX7) || defined(CONFIG_SIGMA_SOC_SX8)
 # define TURING_REG_BASE 0xf1040000
 #else
 # error "unknown chip type"
@@ -195,7 +195,7 @@ static uint32_t get_rsa_key(uint32_t *buf, uint32_t nbytes)
 	return get_fuse_array(otp_rsa_key_off, buf, OTP_RSA_KEY_NBYTES);
 }
 
-#elif defined(CONFIG_MACH_SIGMA_UXLB) /*CONFIG_MACH_SIGMA_SX6 || CONFIG_MACH_SIGMA_SX7 || CONFIG_MACH_SIGMA_SX8*/
+#elif defined(CONFIG_SIGMA_SOC_UXLB) /*CONFIG_SIGMA_SOC_SX6 || CONFIG_SIGMA_SOC_SX7 || CONFIG_SIGMA_SOC_SX8*/
 
 #define OTP_REG_BASE 0xf0002000
 #define OTP_REG_LENGTH	0x2000 /*8K is enough here for otp access*/

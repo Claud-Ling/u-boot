@@ -32,7 +32,7 @@
 #define read_uint32(pa) read_reg(2, pa, 0)
 #define write_uint32(pa, v) write_reg(2, pa, 0, v, 0) /*for some reason, write_reg uses mask in opposite way*/
 
-#if defined (CONFIG_MACH_SIGMA_SX6) /*SX6*/
+#if defined (CONFIG_SIGMA_SOC_SX6) /*SX6*/
 # define PMAN_SEC0_base 0x15005000
 # define PMAN_SEC1_base 0x15008000
 #else /*SX7...*/

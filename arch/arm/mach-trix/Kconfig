@@ -4,16 +4,16 @@ menu "Sigma DTV SOC"
 choice
 	prompt "Soc series"
 
-config MACH_SIGMA_UXLB
+config SIGMA_SOC_UXLB
 	bool "UXLB chipset"
 
-config MACH_SIGMA_SX6
+config SIGMA_SOC_SX6
 	bool "SX6 chipset"
 
-config MACH_SIGMA_SX7
+config SIGMA_SOC_SX7
 	bool "SX7 chipset"
 
-config MACH_SIGMA_SX8
+config SIGMA_SOC_SX8
 	bool "SX8 chipset"
 
 endchoice
@@ -33,13 +33,13 @@ config TRIX_NAND
 
 endchoice
 
-if MACH_SIGMA_SX6 || MACH_SIGMA_UXLB
+if SIGMA_SOC_SX6 || SIGMA_SOC_UXLB
 config SIGMA_NR_UMACS
 	int "Set counts of UMAC controller"
 	default 2
 endif
 
-if MACH_SIGMA_SX7 || MACH_SIGMA_SX8
+if SIGMA_SOC_SX7 || SIGMA_SOC_SX8
 config SIGMA_NR_UMACS
 	int "Set counts of UMAC controller"
 	default 3

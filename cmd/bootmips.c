@@ -577,7 +577,7 @@ static SdMipsDbg_t mdbg = {
 #include <fat.h>
 #define MDBG_DIR "debug/mipsimg/"
 
-#if defined(CONFIG_MACH_SIGMA_SX6) && defined(CONFIG_USB_MONZA_EHCI) && !defined(CONFIG_SYS_DCACHE_OFF)
+#if defined(CONFIG_SIGMA_SOC_SX6) && defined(CONFIG_USB_MONZA_EHCI) && !defined(CONFIG_SYS_DCACHE_OFF)
 # define mdbg_sys_prepare()	do{			\
 			debug("dcache off\n");		\
 			run_command("dcache off", 0);	\
