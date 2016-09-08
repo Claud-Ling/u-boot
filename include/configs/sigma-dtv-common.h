@@ -308,6 +308,12 @@
 /* board configuration dependent */
 #ifdef CONFIG_BOARD_CONFIGURATION
 #   define CONFIG_SPEC_DDR_ENTRY  0x8000
+#   define CONFIG_BDCFG_SIZE 0x1000
+#   if defined(CONFIG_TRIX_MMC)
+#       define CONFIG_BDCFG_OFFSET 0x90000
+#   elif defined(CONFIG_TRIX_NAND)
+#       define CONFIG_BDCFG_OFFSET 0x1800000
+#   endif
 #   define CONFIG_CMD_LOADCFG
 /* #   define CONFIG_WAIT_MCU_READY */
 #   ifdef CONFIG_WAIT_MCU_READY

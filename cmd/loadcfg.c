@@ -4,6 +4,7 @@
 
 #include <asm/armv7.h>
 #include <asm/arch/reg_io.h>
+#include <mmc.h>
 
 /*
  *  * Board Configuration fields
@@ -294,13 +295,70 @@ static void set_mcu_power_stat(void)
 	return ;
 }
 
+/*
+ * This is for SPI+eMMC or SPI+NAND case
+ * SPI preboot can't help load board config due to lack of code size
+ * so, load this by self, don't count on others
+ */
+static void loadcfg_bdcfg_init(void)
+{
+#if CONFIG_TRIX_MMC
+	int err, n, blk_cnt, blk_start;
+	struct mmc *mmc;
+
+	blk_cnt = (CONFIG_BDCFG_SIZE / 512);
+	blk_start = (CONFIG_BDCFG_OFFSET / 512);
+
+	mmc = find_mmc_device(0);
+	if (!mmc) {
+		printf("Loadcfg: no mmc device\n");
+		return;
+	}
+
+	if (mmc_init(mmc))
+		return;
+
+	/*Switch bootpart 1, refer to JESD84-B451.pdf section 7.4.47 */
+	err =  mmc_switch_part(mmc->block_dev.dev, 1);
+	if (err) {
+		printf("Loadcfg: swtich to boot partition failed\n");
+		return;
+	}
+
+	n = mmc->block_dev.block_read(&mmc->block_dev, blk_start, blk_cnt, (void *)board_config);
+	if (n != blk_cnt) {
+		printf("Loadcfg: read board config failed\n");
+	}
+
+	/*Switch back to user partition , refer to JESD84-B451.pdf section 7.4.47 */
+	err =  mmc_switch_part(mmc->block_dev.dev, 0);
+	if (err) {
+		printf("Loadcfg: swtich back to user partition failed\n");
+		return;
+	}
+#else
+
+	printf("Loadcfg: FIXME: Not support load board config from NAND yet\n");
+
+#endif
+
+	return;
+}
+
 static int do_loadcfg(cmd_tbl_t * cmdtp, int flag, int argc, char * const argv[])
 {
         if (argc > 1)
                 goto usage;
-#ifdef DEBUG	
-	PrintMem(board_config,MAX_CONFIG_SIZE);	
-#endif	
+
+	/*
+	 * Load board config just in case preboot doesn't do this.
+	 * i.e. in case of SPI boot scenario.
+	 */
+	loadcfg_bdcfg_init();
+
+#ifdef DEBUG
+	PrintMem(board_config,MAX_CONFIG_SIZE);
+#endif
 
 	do_get_usb_port();
 	do_get_paneltype();
