@@ -305,19 +305,6 @@ static int sdhci_set_clock(struct mmc *mmc, unsigned int clock)
 		udelay(100);
 	}
 
-
-	if (clock == 52000000) {
-		if (mmc->ddr_mode) {
-			printf("Set eMMC DDR50 TAP delay\n");
-			writel( (readl(0xfb00a400) & ~0x1fff) | 0x1600, 0xfb00a400 );
-			
-		} else {
-			/*For SDR mode tap delay */
-			printf("Set eMMC SDR50 TAP delay\n");
-			writel( (readl(0xfb00a400) & ~0x1f00) | 0x1c00, 0xfb00a400 );
-		}
-	}
-
 	reg = sdhci_readw(host, SDHCI_CLOCK_CONTROL);
 	reg &= ~SDHCI_CLOCK_CARD_EN;
 	sdhci_writew(host, reg, SDHCI_CLOCK_CONTROL);
@@ -458,10 +445,25 @@ static void sdhci_set_ios(struct mmc *mmc)
 		/* Enable UHS DDR timing */
 		if (mmc->ddr_mode) {
 			ctrl2 |= SDHCI_CTRL_UHS_DDR50;
+			/* DDR mode is based on high-speed mode */
 			ctrl |= SDHCI_CTRL_HISPD;
+			sdhci_writeb(host, ctrl, SDHCI_HOST_CONTROL);
+			printf("Set eMMC DDR50 TAP delay\n");
+#if defined(CONFIG_SIGMA_SOC_SX7) || defined(CONFIG_SIGMA_SOC_SX6)
+			writel( (readl(0xfb00a400) & ~0x1fff) | 0x1600, 0xfb00a400 );
+#elif defined(CONFIG_SIGMA_SOC_SX8)
+			writel( (readl(0xfb00a400) & ~0x1fff) | 0x1500, 0xfb00a400 );
+#endif
+		} else {
+			ctrl2 &= ~SDHCI_CTRL_UHS_MASK;
+			printf("Set eMMC SDR50 TAP delay\n");
+#if defined(CONFIG_SIGMA_SOC_SX7) || defined(CONFIG_SIGMA_SOC_SX6)
+			writel( (readl(0xfb00a400) & ~0x1f00) | 0x1c00, 0xfb00a400 );
+#elif defined(CONFIG_SIGMA_SOC_SX8)
+			writel( (readl(0xfb00a400) & ~0x1f00) | 0x1600, 0xfb00a400 );
+#endif
 		}
 
-		sdhci_writeb(host, ctrl, SDHCI_HOST_CONTROL);
 		sdhci_writew(host, ctrl2, SDHCI_HOST_CONTROL2);
 
 	}
