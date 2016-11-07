@@ -1,0 +1,179 @@
+#include <common.h>
+#include <command.h>
+#include <asm/io.h>
+#include "libfw/include/fw_core.h"
+#include "libfw/include/libfw.h"
+
+static struct fw_ctx *g_ctx = NULL;
+
+static void fw_init(void)
+{
+	g_ctx = fw_get_board_ctx();
+}
+
+static void dep_vol_handler(struct fw_ctx *ctx, struct fw_vol *vol)
+{
+	char command_buff[128] = { 0 };
+	int32_t flash_typ = fdetecter_main_storage_typ();
+	struct fw_part *part = NULL;
+	if (strncmp(&vol->info->fs[0], "mipsimg",
+				strlen(&vol->info->fs[0]))) {
+		printf("Depend volume(%s)"
+			" operation Not support!!\n", vol->info->name);
+	}
+
+	char *s = getenv("bootmips");
+
+	if (s && (*s!='y') && (*s!='Y')) {
+		return;
+	}
+
+	/* Mips image case */
+	part = fw_vol_get_active_part(vol);
+	sprintf(command_buff, "bootmips %llx:", part->info->start);
+	if (flash_typ == FW_FTYP_EMMC) {
+		strcat(command_buff, "mmc");
+	} else if (flash_typ == FW_FTYP_NAND) {
+		strcat(command_buff, "nand");
+	} else {
+		printf("Flash type(%d) not support for bootmips\n", flash_typ);
+		return;
+	}
+	run_command(&command_buff[0], 0);
+
+}
+
+static void fw_boot(void)
+{
+	int ret = -1, rd_sz;;
+	struct fw_vol *boot = NULL;
+	struct fw_part *part = NULL;
+	struct fw_vol *dep_vol =  NULL;
+
+	boot = fw_get_vol_by_ability_enabled(g_ctx, FW_AB_BOOT, FW_BOOT_ACT);
+	if (!boot) {
+		printf("fw: No boot active volume found!\n");
+		return;
+	}
+
+	dep_vol = fw_get_dep_vol(g_ctx, boot);
+	if (dep_vol) {
+		dep_vol_handler(g_ctx, dep_vol);
+	}
+
+	part = fw_vol_get_active_part(boot);
+
+	ret = fw_open_volume(g_ctx, boot->info->name, FW_VOL_CONTENT_INUSE);
+	if (ret < 0) {
+		printf("Can't open volume(%s)!\n", boot->info->name);
+		return;
+	}
+
+
+	rd_sz = fw_read_volume(g_ctx, (void *)0x8000000, part->info->size);
+	if (rd_sz < 0) {
+		printf("fw: Load volume(%s) content failed!\n", boot->info->name);
+		return;
+	}
+
+	//TODO: bootm booti bootx case.
+	run_command("boota 8000000", 0);
+	return;
+}
+
+static int do_fw(cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])
+{
+	//int ret = -1;
+
+	if (argc < 2)
+		goto usage;
+
+	if (strcmp(argv[1], "init") == 0) {
+		if (g_ctx == NULL)
+			fw_init();
+		return 0;
+	} else if (strcmp(argv[1], "boot") == 0) {
+		if (g_ctx == NULL) {
+			fw_init();
+		}
+		if (g_ctx == NULL) {
+			printf("No vaild firmware info on board!\n");
+			return 0;
+		}
+		fw_boot();
+		return 0;
+
+	} else if (strcmp(argv[1], "dump") == 0) {
+		if (g_ctx == NULL) {
+			fw_init();
+		}
+		if (g_ctx == NULL) {
+			printf("No vaild firmware info on board!\n");
+			return 0;
+		}
+		fw_dump(g_ctx);
+		return 0;
+	} else if (strcmp(argv[1], "get_part_list") == 0) {
+		char *part_list = NULL;
+		part_list = libfw_board_get_part_list();
+		if (!part_list) {
+			return -1;
+		}
+		printf("%s\n", part_list);
+		free(part_list);
+		part_list = NULL;
+		return 0;
+	} else if (strcmp(argv[1],"set_boot_from") == 0) {
+		char *vol_name = argv[2];
+		int ret = -1;
+
+		if (!vol_name) {
+			printf("volume name is needed!\n");
+			return -1;
+		}
+
+		ret = libfw_board_set_boot_from(vol_name);
+		if (ret<0) {
+			printf("Failed: please make sure this volume exist and have boot ability\n");
+		}
+		fw_init();
+
+		return ret;
+	} else if (strcmp(argv[1], "get_boot_volume") == 0) {
+
+		char  *boot_vol = NULL;
+
+		boot_vol = libfw_board_get_boot_volume();
+		if (!boot_vol) {
+			printf("fw: No boot active volume found!\n");
+			return -1;
+		}
+		printf("boot volume is: %s\n", boot_vol);
+		free(boot_vol);
+		boot_vol = NULL;
+		return 0;
+	}
+
+
+usage:
+	return CMD_RET_USAGE;
+}
+
+
+U_BOOT_CMD(
+	fw,	5,	0,	do_fw,
+	"Firmware info command",
+	"init\n"
+	"    -init fw_ctx\n\n"
+	"boot\n"
+	"    -Load boot active volume and boot\n\n"
+	"dump\n"
+	"    -Output all content of firmware info\n\n"
+	"get_part_list\n"
+	"    -Output partition layout\n\n"
+	"set_boot_from <volume name>\n"
+	"    -Set which volume will be booted with 'fw boot' command\n"
+	"         'volume name' specify volume want to set as primary boot volume\n\n"
+	"get_boot_volume\n"
+	"    -Output primary boot volume name\n"
+);

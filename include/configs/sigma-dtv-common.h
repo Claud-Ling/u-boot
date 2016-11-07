@@ -259,6 +259,8 @@
 #define CONFIG_CMD_KERNEL
 #define CONFIG_CMD_BOOTA
 
+/*Firmware info*/
+#define CONFIG_CMD_FIRMWARE_INFO
 
 #define CONFIG_CMD_CACHE
 #define CONFIG_CMD_REGINFO
