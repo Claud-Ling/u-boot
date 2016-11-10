@@ -19,6 +19,95 @@
 #error "Unknow SOC type"
 #endif
 
+#if defined(CONFIG_SIGMA_SOC_SX8)
+#define USB1_PHY_TST_CR		((void *)(0xf502f204))
+#define USB1_PHY_TST_RR		((void *)(0xf502f208))
+#define USB2_PHY_TST_CR		((void *)(0xfb008204))
+#define USB2_PHY_TST_RR		((void *)(0xfb008208))
+
+static int phy_handshake(void *reg, int val, int mask, int timeout)
+{
+	do {
+		if ((ReadRegWord(reg) & mask) == val) {
+			return 0;
+		}
+		timeout--;
+		udelay(1);
+	}while(timeout > 0);
+
+	return -ETIMEDOUT;
+}
+
+static void usb_phy_fixup(void)
+{
+	int ret = 0;
+
+	MWriteRegWord(USB1_PHY_TST_CR, 0x0000, 0xffff);
+	MWriteRegWord(USB1_PHY_TST_CR, 0x4000, 0xffff);
+	MWriteRegWord(USB1_PHY_TST_CR, 0x0000, 0xffff);
+	MWriteRegWord(USB1_PHY_TST_CR, 0x4000, 0xffff);
+	MWriteRegWord(USB1_PHY_TST_CR, 0x0000, 0xffff);
+	MWriteRegWord(USB1_PHY_TST_CR, 0x2000, 0xffff);
+	MWriteRegWord(USB1_PHY_TST_CR, 0x6000, 0xffff);
+	MWriteRegWord(USB1_PHY_TST_CR, 0x2000, 0xffff);
+	MWriteRegWord(USB1_PHY_TST_CR, 0x6000, 0xffff);
+	MWriteRegWord(USB1_PHY_TST_CR, 0x2000, 0xffff);
+
+	ret = phy_handshake(USB1_PHY_TST_CR, 0x2000, 0xffff, 1000);
+	if (ret)
+		printf("Wait PHY_TST_CR(%p) transition to 0x2000, timeout\n", USB1_PHY_TST_CR);
+
+	ret = phy_handshake(USB1_PHY_TST_RR, 0x00, 0xff, 1000);
+	if (ret)
+		printf("Wait PHY_TST_RR(%p) transition to 0x00, timeout\n", USB1_PHY_TST_RR);
+
+	MWriteRegWord(USB1_PHY_TST_CR, 0x34102, 0xfffff);
+	MWriteRegWord(USB1_PHY_TST_CR, 0x74102, 0xfffff);
+	ret = phy_handshake(USB1_PHY_TST_RR, 0x02, 0xff, 1000);
+	if (ret)
+		printf("Wait PHY_TST_RR(%p) transition to 0x02, timeout\n", USB1_PHY_TST_RR);
+
+	MWriteRegWord(USB1_PHY_TST_CR, 0x34100, 0xfffff);
+	MWriteRegWord(USB1_PHY_TST_CR, 0x74100, 0xfffff);
+	ret = phy_handshake(USB1_PHY_TST_RR, 0x00, 0xff, 1000);
+	if (ret)
+		printf("Wait PHY_TST_RR(%p) transition to 0x00, timeout\n", USB1_PHY_TST_RR);
+
+
+	MWriteRegWord(USB2_PHY_TST_CR, 0x0000, 0xffff);
+	MWriteRegWord(USB2_PHY_TST_CR, 0x4000, 0xffff);
+	MWriteRegWord(USB2_PHY_TST_CR, 0x0000, 0xffff);
+	MWriteRegWord(USB2_PHY_TST_CR, 0x4000, 0xffff);
+	MWriteRegWord(USB2_PHY_TST_CR, 0x0000, 0xffff);
+	MWriteRegWord(USB2_PHY_TST_CR, 0x2000, 0xffff);
+	MWriteRegWord(USB2_PHY_TST_CR, 0x6000, 0xffff);
+	MWriteRegWord(USB2_PHY_TST_CR, 0x2000, 0xffff);
+	MWriteRegWord(USB2_PHY_TST_CR, 0x6000, 0xffff);
+	MWriteRegWord(USB2_PHY_TST_CR, 0x2000, 0xffff);
+
+	ret = phy_handshake(USB2_PHY_TST_CR, 0x2000, 0xffff, 1000);
+	if (ret)
+		printf("Wait PHY_TST_CR(%p) transition to 0x2000, timeout\n", USB2_PHY_TST_CR);
+
+	ret = phy_handshake(USB2_PHY_TST_RR, 0x00, 0xff, 1000);
+	if (ret)
+		printf("Wait PHY_TST_RR(%p) transition to 0x00, timeout\n", USB2_PHY_TST_RR);
+
+	MWriteRegWord(USB2_PHY_TST_CR, 0x34102, 0xfffff);
+	MWriteRegWord(USB2_PHY_TST_CR, 0x74102, 0xfffff);
+	ret = phy_handshake(USB2_PHY_TST_RR, 0x02, 0xff, 1000);
+	if (ret)
+		printf("Wait PHY_TST_RR(%p) transition to 0x02, timeout\n", USB2_PHY_TST_RR);
+
+	MWriteRegWord(USB2_PHY_TST_CR, 0x34100, 0xfffff);
+	MWriteRegWord(USB2_PHY_TST_CR, 0x74100, 0xfffff);
+	ret = phy_handshake(USB2_PHY_TST_RR, 0x00, 0xff, 1000);
+	if (ret)
+		printf("Wait PHY_TST_RR(%p) transition to 0x00, timeout\n", USB2_PHY_TST_RR);
+
+}
+#endif /* CONFIG_SIGMA_SOC_SX8 */
+
 void usb2_power_init(void)
 {
 #if defined (CONFIG_SIGMA_SOC_SX6) || defined (CONFIG_SIGMA_SOC_SX7)
@@ -91,6 +180,8 @@ void usb2_power_init(void)
 		
 	/* Set GPIO6 output high */
 	MWriteRegHWord(0xfb005502, 0x0040, 0x0040);
+
+	usb_phy_fixup();
 #else
 #error "Unknow SOC type"
 #endif
