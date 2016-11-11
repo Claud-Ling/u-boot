@@ -135,6 +135,10 @@
 #   define CONFIG_SYS_USB_XHCI_MAX_ROOT_PORTS 2
 #endif
 
+#if defined (CONFIG_USB_NETWORK)
+#   define CONFIG_USB_HOST_ETHER
+#   define CONFIG_USB_ETHER_ASIX
+#endif
 
 /* sd/mmc dependent */
 #if defined(CONFIG_TRIX_MMC)
