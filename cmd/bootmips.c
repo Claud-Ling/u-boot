@@ -1,5 +1,5 @@
-#include <common.h>
 #include <command.h>
+#include <common.h>
 #include <asm/io.h>
 #include <asm/arch/reg_io.h>
 #include <malloc.h>
@@ -37,6 +37,10 @@
 
 #define getenv_yesno(v) ({char* _s=getenv(v);(_s && (*_s == 'n')) ? 0 : 1;})	/* default true */
 #define getenv_yes(v) ({char* _s=getenv(v);(_s && (*_s == 'y')) ? 1 : 0;})	/* default false */
+
+#define pr_err(fmt...)  printf("error: "fmt)
+#define pr_warn(fmt...) printf("warn:  "fmt)
+#define pr_info(fmt...) printf("info:  "fmt)
 
 typedef enum _tagSdBootDevice{
 	BOOTDEV_DDR=0,	/* dram memory */
@@ -323,7 +327,7 @@ static int mmc_get_header(void *load_addr, int load_size, mips_img_hdr* hdr)
 	/* check load_addr alignment */
 	if (!MMC_ISBLKALIGN(load_addr))
 	{
-		printf("Not a mmc block aligned addr:%p!\n", load_addr);
+		pr_err("Not a mmc block aligned addr:%p!\n", load_addr);
 		return 1;
 	}
 
@@ -380,7 +384,7 @@ DECLARE_BOOT_DEVICE(mmc,
 #ifdef DEBUG
 # define CHK_ALIGN(a) do {							\
 		if ((u32)(a) & (PAGESIZE - 1))					\
-			printf("error: addr(0x%x) is NOT page(0x%x) aligned!",	\
+			pr_err("addr(0x%x) is NOT page(0x%x) aligned!",		\
 			(u32)(a), PAGESIZE);					\
 	}while(0)
 #else
@@ -438,7 +442,7 @@ static int nand_get_header(void *load_addr, int load_size, mips_img_hdr* hdr)
 	u32 rdlen = sizeof(mips_img_hdr);
 
 	if (!NAND_ISALIGN(load_addr)) {
-		printf("Not a nand page (0x%x) aligned address (0x%x)\n", PAGESIZE, (u32)load_addr);
+		pr_err("Not a nand page (0x%x) aligned address (0x%x)\n", PAGESIZE, (u32)load_addr);
 		return 1;
 	}
 
@@ -752,7 +756,7 @@ static int do_load_memfile(void* img, u32 len, void* mimg_ddr, u32 mlen, int tar
 	}
 	else
 	{
-		printf("ERROR: memfile size exceeds %#x!!\n", MAX_MEM_FILE_SIZE);
+		pr_err("memfile size exceeds %#x!!\n", MAX_MEM_FILE_SIZE);
 		ret = 0;
 	}
 	return ret;
@@ -767,7 +771,7 @@ static int do_check_memfile(void *img, u32 len, int target_ending)
 
 	if (((int)img) & 3)
 	{
-		printf("ERROR: base addr(%p) doesn't aligned by DWORD!\n", img);
+		pr_err("base addr(%p) doesn't aligned by DWORD!\n", img);
 		return 1;
 	}
 
@@ -779,14 +783,14 @@ static int do_check_memfile(void *img, u32 len, int target_ending)
 
 	if (mlen > MAX_MEM_FILE_SIZE)
 	{
-		printf("ERROR: memfile size %#x read @%p exceeds %#x!!\n", mlen, mstart, MAX_MEM_FILE_SIZE);
+		pr_err("memfile size %#x read @%p exceeds %#x!!\n", mlen, mstart, MAX_MEM_FILE_SIZE);
 		return 1;
 	}
 
 	mstart += 4;
 	if (!(rootpos = strstr(mstart, "<root>")) || (rootpos - mstart) > MAX_MEM_FILE_SIZE)
 	{
-		printf("ERROR: cant find memfile @%p!!\n", mstart);
+		pr_err("cant find memfile @%p!!\n", mstart);
 		return 1;
 	}
 
@@ -817,13 +821,48 @@ static char * strnstr(const char * s1,const char * s2,const int n)
 	return NULL;
 }
 
+static int xml_get_node_attr(void *handler, const char* attrname, u32 *pVal)
+{
+	int ret = -10;
+	u32 val = 0;
+	simple_xml_node_t *node;
+	char* t = NULL;
+
+	if (NULL == handler || NULL == attrname)
+		goto fail;
+
+	node = (simple_xml_node_t*)handler;
+
+	/*
+	 * retrieve attr value
+	 * <nodename attrname0= "xx",attrname1= "xx",...
+	 */
+	if ((t = strnstr(node->start, attrname, node->end - node->start)) == NULL) {
+		pr_err("cant find attr '%s', wrong xml file!?\n", attrname);
+		goto fail;
+	}
+
+	if ((t = strchr(t + strlen(attrname), '"')) == NULL || (t > node->end)) {
+		pr_err("failed in searching value for '%s', wrong xml file!?\n", attrname);
+		goto fail;
+	}
+
+	*pVal = val = simple_strtoul(t + 1, NULL, 0);
+	ret = 0;
+#ifdef DEBUG
+	printf("get value:0x%x, attr: %s\n", val, attrname);
+#endif
+fail:
+	return ret;
+
+}
+
 static int xml_get_node(void* handler, const char* nodename, simple_xml_node_t* node)
 {
 	simple_xml_node_t* root = (simple_xml_node_t*)handler;
 	char *s, *h, *t;
 	int nb = root->end - root->start;
 	s = h = t = NULL;
-	memset(node, 0, sizeof(simple_xml_node_t));
 	if((s = strnstr(root->start, nodename, nb)) != NULL) {
 		if ( *(s + strlen(nodename)) == '>') {
 			/*
@@ -857,6 +896,7 @@ static int xml_get_node(void* handler, const char* nodename, simple_xml_node_t* 
 	}
 
 ok:
+	memset(node, 0, sizeof(simple_xml_node_t));
 	node->start = h;
 	node->end = t;
 #ifdef DEBUG
@@ -868,16 +908,15 @@ ok:
 #endif
 	return 0;
 error:
-	printf("ERROR: fail to get node <%s>, wrong xml file?!\n", nodename);
-	return 1;
+	pr_err("fail to get node <%s>, wrong xml file?!\n", nodename);
+	return -11;
 }
 
 static int xml_get_uint(void *handler, const char* nodename, const char* attrname, u32 * pVal)
 {
-	int ret = 1;
+	int ret = -12;
 	u32 val = 0;
 	simple_xml_node_t *root, node;
-	char* t = NULL;
 
 	if (NULL == handler || NULL == nodename || NULL == attrname)
 		goto fail;
@@ -888,18 +927,10 @@ static int xml_get_uint(void *handler, const char* nodename, const char* attrnam
 	if (xml_get_node(root, nodename, &node) != 0)
 		goto fail;
 
-	/*retrieve attr value*/
-	if ((t = strnstr(node.start, attrname, node.end - node.start)) == NULL) {
-		printf("ERROR: cant find attr '%s', wrong xml file!?\n", attrname);
+	if (xml_get_node_attr(&node, attrname, &val) != 0)
 		goto fail;
-	}
 
-	if ((t = strchr(t + strlen(attrname), '"')) == NULL || (t > node.end)) {
-		printf("ERROR: failed in searching value for '%s', wrong xml file!?\n", attrname);
-		goto fail;
-	}
-
-	*pVal = val = simple_strtoul(t + 1, NULL, 0);
+	*pVal = val;
 	ret = 0;
 #ifdef DEBUG
 	printf("get value:0x%x, node: %s\n", val, nodename);
@@ -908,37 +939,17 @@ fail:
 	return ret;
 }
 
-static int get_panel_type(unsigned *ptype, unsigned *pnode_ofs, const char* data, const int dlen, const char *tag)
-{
-	char *p=NULL, *q=NULL, *r=NULL;
-	if (!data || dlen<=0)
-		return 1;
-
-	if ((p = strstr(data, tag))) {
-		//<panel Val="x" />
-		if (pnode_ofs)
-			*pnode_ofs = p - data;
-		q = strchr(p+strlen(tag), '"');
-		r = strstr(p+strlen(tag), "/>");
-		if (q && r && q < r && ptype) {
-			*ptype = (simple_strtoul(q+1, NULL, 0) & 0xFF);
-			return 0;
-		}
-	}
-	return 1;
-}
-
-static int do_fixup_paneltype(void* cfg, unsigned lsize, unsigned target_ending,
-				 unsigned ofs, unsigned dlsize, int val, const char* tag)
+static int do_fixup_xml_node_attr(void* base, unsigned target_ending, unsigned ofs,
+				   unsigned dlsize, int val, const char* attr)
 {
 	int ret = 1;
 	int dlen = 0;
 	char *p = NULL, *q = NULL, *r = NULL;
 	char str_buff[32];
 
-	if (!cfg || (((int)cfg) & 3))
+	if (!base || (((int)base) & 3))
 	{
-		printf("error: invalid memfile addr:%p\n", cfg);
+		pr_err("invalid memfile addr:%p\n", base);
 		return 1;
 	}
 
@@ -946,69 +957,71 @@ static int do_fixup_paneltype(void* cfg, unsigned lsize, unsigned target_ending,
 		dlsize = 4;
 
 	if (dlsize == 4 ){
-		dlen = *(int*)cfg;
+		dlen = *(int*)base;
 		if (GET_ENDING() ^ target_ending)
 			dlen = SWAP_32(dlen);
 	} else if (dlsize == 2){
-		dlen = *(short*)cfg;
+		dlen = *(short*)base;
 		if (GET_ENDING() ^ target_ending)
 			dlen = SWAP_16(dlen);
 	} else if (dlsize == 1){
-		dlen = *(char*)cfg;
+		dlen = *(char*)base;
 	} else {
-		printf("error: invalid dlen size:%d\n", dlsize);
+		pr_err("invalid dlen size:%d\n", dlsize);
 		return 1;
 	}
 
 	debug("dlen=%d\n", dlen);
 	if (dlen > MAX_MEM_FILE_SIZE)
 	{
-		printf("error: invalid memfile size: %d\n", dlen);
+		pr_err("invalid memfile size: %d\n", dlen);
 		return 1;
 	}
 
-	sprintf(str_buff, "\"%d\"", val);
-	/* fixup paneltype in memfile
-	 * '<panel Val="x" />' or '<frcxpal Val="x" />'
+	sprintf(str_buff, "\"0x%x\"", val);
+	/*
+	 * fixup value for node in memfile, in pattern
+	 * '<name Val="value" />'
 	 */
-	if (!strncmp(cfg+ofs, tag, strlen(tag)))
-		p = cfg + ofs;
-	else
-		p = strstr(cfg+dlsize, tag);
+	if (!strncmp(base+dlsize+ofs, attr, strlen(attr))) {
+		p = base + dlsize + ofs;
+	} else {
+		p = strstr(base+dlsize, attr);
+	}
 
-	if (p != NULL && (p - ((char*)cfg + dlsize)) < MAX_MEM_FILE_SIZE)
+	if (p != NULL && (p - ((char*)base + dlsize)) < MAX_MEM_FILE_SIZE)
 	{
-		q = strchr(p + strlen(tag), '"');
-		r = strstr(p + strlen(tag), "/>");
+		q = strchr(p + strlen(attr), '"');
+		r = strstr(p + strlen(attr), "/>");
 		if (q && r && q < r)
 		{
 			if ((r - q) < strlen(str_buff))
 			{
 				int nbytes = strlen(str_buff) - (r - q);
-				printf("memmove memfile at offset %d by %d bytes\n", ((void*)r - cfg - dlsize), nbytes);
-				memmove(r + nbytes, r, dlen - ((void*)r - cfg - dlsize));
+				pr_info("memmove memfile at offset %d by %d bytes\n", ((void*)r - base - dlsize), nbytes);
+				memmove(r + nbytes, r, dlen - ((void*)r - base - dlsize));
 				r += nbytes;
 				dlen += nbytes;
 				if (dlsize == 4 ) {
 					if (GET_ENDING() ^ target_ending)
 						dlen = SWAP_32(dlen);
-					*(int*)cfg = dlen;
+					*(int*)base = dlen;
 				} else if (dlsize == 2) {
 					if (GET_ENDING() ^ target_ending)
 						dlen = SWAP_16(dlen);
-					*(short*)cfg = dlen;
+					*(short*)base = dlen;
 				} else {
-					*(char*)cfg = dlen;
+					*(char*)base = dlen;
 				}
 			}
 
-			printf("%s type> -> '%d'\n", tag, val);
+			pr_info("<%s Val -> '%d'\n", attr, val);
 			memcpy(q, str_buff, strlen(str_buff));
 			q += strlen(str_buff);
 			while (q < r)
 				*q++ = ' ';
 
-			flush_cache((ulong)cfg, dlen + dlsize);
+			flush_cache((ulong)base, dlen + dlsize);
 #ifdef DEBUG
 			char log_buff[32];
 			memcpy(log_buff, p, 31);
@@ -1064,7 +1077,7 @@ static int do_load_image(SdImgPayload_t id, void* img, u32 slen, u32 dest, u32 b
 
 	if (0 == dest)
 	{
-		printf("no load addr is specified for %s\n", GetImgName(id));
+		pr_err("no load addr is specified for %s\n", GetImgName(id));
 		return -1;
 	}
 
@@ -1146,7 +1159,7 @@ static int do_bootmips(cmd_tbl_t * cmdtp, int flag, int argc, char * const argv[
 	if (p && (*p == 'y' || *p == 'm')) {
 		p = getenv("msize");
 		if (p == NULL) {
-			printf("can't getenv 'msize', bootmips failed!\n");
+			pr_err("can't getenv 'msize', bootmips failed!\n");
 			return 2;
 		}
 		mem_sel = simple_strtoul(p, 0, 16);
@@ -1167,7 +1180,7 @@ static int do_bootmips(cmd_tbl_t * cmdtp, int flag, int argc, char * const argv[
 			bootdev = &BOOT_DEVICE(nand);
 #endif
 		else
-			{printf("invalid bootdev: '%s'\n", p); return CMD_RET_USAGE;}
+			{pr_err("invalid bootdev: '%s'\n", p); return CMD_RET_USAGE;}
 	}
 
 #ifdef CONFIG_DEBUG_MIPS
@@ -1181,7 +1194,7 @@ static int do_bootmips(cmd_tbl_t * cmdtp, int flag, int argc, char * const argv[
 	/* let's check the image loading address to see if it is mips boot.img first */
 	if (strncmp((char*)hdr->magic, MIPS_MAGIC, MIPS_MAGIC_SIZE) != 0)
 	{
-		printf("Not a valid MIPS boot.img!\n");
+		pr_err("Not a valid MIPS boot.img!\n");
 		ret = 1;
 		goto OUT;
 	}
@@ -1223,15 +1236,15 @@ static int do_bootmips(cmd_tbl_t * cmdtp, int flag, int argc, char * const argv[
 	}
 
 	if (mem_sel != 0 && cfg_img == NULL) {
-		printf("warning: failed to match config file 'setting_cfg%x.xml'!\n", mem_sel);
+		pr_warn("failed to match config file 'setting_cfg%x.xml'!\n", mem_sel);
 	} else {
-		printf("select config file '%s'\n", cfg_fn);
+		pr_info("select config file '%s'\n", cfg_fn);
 	}
 
 	if (mem_sel != 0 && st_img == NULL) {
-		printf("warning: failed to match setting file 'initsetting%x.file'!\n", mem_sel);
+		pr_warn("failed to match setting file 'initsetting%x.file'!\n", mem_sel);
 	} else {
-		printf("select setting file '%s'\n", st_fn);
+		pr_info("select setting file '%s'\n", st_fn);
 	}
 
 	/*
@@ -1268,7 +1281,7 @@ static int do_bootmips(cmd_tbl_t * cmdtp, int flag, int argc, char * const argv[
 			hdr->data[i].addr = 0; /*reset*/
 			if (cfg_buf != NULL)
 				do_fixup_loadaddr(id, cfg_buf, cfg_size, &hdr->data[i].addr);
-			printf("fixup %-20s load addr to 0x%08x\n", hdr->data[i].name, hdr->data[i].addr);
+			pr_info("fixup %-20s load addr to 0x%08x\n", hdr->data[i].name, hdr->data[i].addr);
 		}
 
 		/* do we really need to load image? */
@@ -1285,7 +1298,7 @@ static int do_bootmips(cmd_tbl_t * cmdtp, int flag, int argc, char * const argv[
 	if (!cfg_buf ||
 	    (!av_addr||!do_load_memfile((void*)av_addr, av_size, cfg_buf, cfg_size, hdr->target_ending)) ||
 	    (!disp_addr||!do_load_memfile((void*)disp_addr, disp_size, cfg_buf, cfg_size, hdr->target_ending))) {
-		printf("load memfile failed!\n");
+		pr_warn("load memfile failed!\n");
 	}
 
 	/*
@@ -1295,54 +1308,105 @@ static int do_bootmips(cmd_tbl_t * cmdtp, int flag, int argc, char * const argv[
 	{
 		/* verify memfile */
 		if (do_check_memfile((void*)av_addr, av_size, hdr->target_ending)) {
-			printf("invalid memfile!\n");
+			pr_err("invalid memfile!\n");
 			goto OUT;
 		}
 	}
 
 	if (disp_addr != 0)
 	{
-		unsigned int paneltype = 0;
+		simple_xml_node_t root, node;
+		unsigned int tmp = 0;
 		unsigned nodeofs = 0;
 		/* verify memfile */
 		if (do_check_memfile((void*)disp_addr, disp_size, hdr->target_ending)) {
-			printf("invalid memfile!\n");
+			pr_err("invalid memfile!\n");
 			goto OUT;
 		}
 
+		memset(&root, 0, sizeof(simple_xml_node_t));
+		root.start = (char*)cfg_buf;
+		root.end = (char*)(cfg_buf + cfg_size);
+		if ((ret = xml_get_node(&root, "DISP_MIPS", &root)) ||
+		    (ret = xml_get_node(&root, "InitParam", &root))) {
+			pr_err("xml_get_node error, unknown xml file!?\n");
+			goto OUT;
+		}
 		/*
 		 * revise paneltype from env 'panel_type' in case paneltype=0xFF is given
 		 */
-		ret = get_panel_type(&paneltype, &nodeofs, cfg_buf, cfg_size, "<panel");
-		if (ret == 0 && 0xFF == paneltype){
+		if ((ret = xml_get_node(&root, "panel", &node)) ||
+		    (ret = xml_get_node_attr(&node, "Val", &tmp))) {
+			pr_err("fail to get panel val, unknown xml file!?\n");
+			goto OUT;
+		}
+
+		if (0xFF == tmp) {
 			char* p = getenv("panel_type");
 			if (p != NULL) {
-				paneltype = simple_strtoul(p, NULL, 10) & 0xFF;
-				if ((do_fixup_paneltype((void*)disp_addr+hdr->mcfg_ofs, MAX_MEM_FILE_SIZE,
-					hdr->target_ending, nodeofs, hdr->mcfglen_size, paneltype, "<panel"))) {
-					printf("fixup panel type failed!\n");
+				const char* attr = "panel";
+				nodeofs = (unsigned)((void*)node.start - cfg_buf - strlen(attr));
+				tmp = simple_strtoul(p, NULL, 10);
+				if ((do_fixup_xml_node_attr((void*)disp_addr+hdr->mcfg_ofs,
+							   hdr->target_ending, nodeofs,
+							   hdr->mcfglen_size, tmp, attr))) {
+					pr_err("fixup panel type failed!\n");
 					goto OUT;
 				}
 			} else {
-				printf("warning: env 'panel_type' is not set!\n");
+				pr_warn("env 'panel_type' is not set!\n");
 			}
 		}
 
 		/*
 		 * revise frcxpal from env 'frcx_panel' in case frcxpal=0xFF is given
 		 */
-		ret = get_panel_type(&paneltype, &nodeofs, cfg_buf, cfg_size, "<frcxpal");
-		if (ret == 0 && 0xFF == paneltype){
+		if ((ret = xml_get_node(&root, "frcxpal", &node)) ||
+		    (ret = xml_get_node_attr(&node, "Val", &tmp))) {
+			pr_err("fail to get frcxpal val, unknown xml file!?\n");
+			goto OUT;
+		}
+
+		if (0xFF == tmp){
 			char* p = getenv("frcx_panel");
 			if (p != NULL) {
-				paneltype = simple_strtoul(p, NULL, 10) & 0xFF;
-				if ((do_fixup_paneltype((void*)disp_addr+hdr->mcfg_ofs, MAX_MEM_FILE_SIZE,
-					hdr->target_ending, nodeofs, hdr->mcfglen_size, paneltype, "<frcxpal"))) {
-					printf("fixup panel type failed!\n");
+				const char* attr = "frcxpal";
+				nodeofs = (unsigned)((void*)node.start - cfg_buf - strlen(attr));
+				tmp = simple_strtoul(p, NULL, 10);
+				if ((do_fixup_xml_node_attr((void*)disp_addr+hdr->mcfg_ofs,
+							    hdr->target_ending, nodeofs,
+							    hdr->mcfglen_size, tmp, attr))) {
+					pr_err("fixup frcxpal type failed!\n");
 					goto OUT;
 				}
 			} else {
-				printf("warning: env 'frcx_panel' is not set!\n");
+				pr_warn("env 'frcx_panel' is not set!\n");
+			}
+		}
+
+		/*
+		 * revise mipsflag from env 'mipsflag' in case mipsflag=0xFFFFFFFF is given
+		 */
+		if ((ret = xml_get_node(&root, "mipsflag", &node)) ||
+		    (ret = xml_get_node_attr(&node, "Val", &tmp))) {
+			pr_err("fail to get mipsflag val, legacy xml file!?\n");
+			//goto OUT;	/*no abandon for 'mipsflag' not exist in legacy prj*/
+		}
+
+		if (0xFFFFFFFF == tmp){
+			char* p = getenv("mipsflag");
+			if (p != NULL) {
+				const char* attr = "mipsflag";
+				nodeofs = (unsigned)((void*)node.start - cfg_buf - strlen(attr));
+				tmp = simple_strtoul(p, NULL, 10);
+				if ((do_fixup_xml_node_attr((void*)disp_addr+hdr->mcfg_ofs,
+							    hdr->target_ending, nodeofs,
+							    hdr->mcfglen_size, tmp, attr))) {
+					pr_err("fixup mipsflag failed!\n");
+					goto OUT;
+				}
+			} else {
+				pr_warn("env 'mipsflag' is not set!\n");
 			}
 		}
 
@@ -1367,7 +1431,7 @@ static int do_bootmips(cmd_tbl_t * cmdtp, int flag, int argc, char * const argv[
 			if (ret != 0)
 				goto OUT;
 		} else {
-			printf("load initsettings failed!\n");
+			pr_warn("load initsettings failed!\n");
 			goto OUT;
 		}
 #undef MAX_SETTINGS_SIZE
