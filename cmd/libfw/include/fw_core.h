@@ -176,7 +176,9 @@ extern struct fw_vol *fw_get_vol_by_ability_enabled(struct fw_ctx *ctx,
 extern struct fw_vol *fw_get_dep_vol(struct fw_ctx *ctx, struct fw_vol *vol);
 
 extern struct fw_part * fw_vol_get_active_part(struct fw_vol *vol);
+extern struct fw_part *fw_vol_get_inactive_part(struct fw_vol *vol);
 extern struct fw_part * fw_vol_get_part_by_id(struct fw_vol *vol, uint32_t id);
+extern void fw_vol_set_active_part(struct fw_vol *vol, struct fw_part *part);
 
 extern int32_t fw_open_volume(struct fw_ctx *ctx, const char *name, uint32_t flags);
 extern int64_t fw_write_volume(struct fw_ctx  *ctx, void *buff, uint64_t len);

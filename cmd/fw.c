@@ -4,6 +4,15 @@
 #include "libfw/include/fw_core.h"
 #include "libfw/include/libfw.h"
 
+enum {
+	PREBOOT_KEY=1,
+	UBOOT_KEY,
+	KERNEL_KEY,
+	APP_KEY,
+	INVALID_KEY
+};
+extern int signature_check(void *data, int len, int key_type, void *signature);
+
 static struct fw_ctx *g_ctx = NULL;
 
 static void fw_init(void)
@@ -43,12 +52,31 @@ static void dep_vol_handler(struct fw_ctx *ctx, struct fw_vol *vol)
 
 }
 
+static void volume_switch_part(struct fw_vol *vol)
+{
+	struct fw_part *act_part = fw_vol_get_active_part(vol);
+	struct fw_part *inact_part = fw_vol_get_inactive_part(vol);
+
+	/* Impossible */
+	if (!act_part || !inact_part) {
+		BUG();
+		return;
+	}
+
+	printf("\r\n############switch part %s -> %s##########\r\n", act_part->info->name, inact_part->info->name);
+
+	fw_vol_set_active_part(vol, inact_part);
+	return;
+}
+
 static void fw_boot(void)
 {
 	int ret = -1, rd_sz;;
 	struct fw_vol *boot = NULL;
 	struct fw_part *part = NULL;
 	struct fw_vol *dep_vol =  NULL;
+	int len = 0;
+	void *data = NULL;
 
 	boot = fw_get_vol_by_ability_enabled(g_ctx, FW_AB_BOOT, FW_BOOT_ACT);
 	if (!boot) {
@@ -63,6 +91,17 @@ static void fw_boot(void)
 
 	part = fw_vol_get_active_part(boot);
 
+	data = &part->info->need_sig;
+	len = (int)((unsigned long)&part->info->info_sig[0] -
+				(unsigned long)&part->info->need_sig - 1); 
+
+	ret = signature_check(data, len, PREBOOT_KEY, &part->info->info_sig[0]);
+	if (ret) {
+		printf("\r\n##########Firmware info  RSA verify fail!############\r\n");
+		volume_switch_part(boot);
+		goto failed;
+	}
+
 	ret = fw_open_volume(g_ctx, boot->info->name, FW_VOL_CONTENT_INUSE);
 	if (ret < 0) {
 		printf("Can't open volume(%s)!\n", boot->info->name);
@@ -76,9 +115,25 @@ static void fw_boot(void)
 		return;
 	}
 
+	if (!part->info->need_sig) {
+		goto skip_sig;
+	}
+
+	ret = signature_check((void *)0x8000000, part->info->valid_sz, PREBOOT_KEY, &part->info->part_sig[0]);
+	if (ret) {
+		printf("\r\n##########Volume(%s)  RSA verify fail!############\r\n", boot->info->name);
+		volume_switch_part(boot);
+		goto failed;
+	}
+
+skip_sig:
 	//TODO: bootm booti bootx case.
 	run_command("boota 8000000", 0);
 	return;
+failed:
+	printf("\r\n############Signature check failed!, system halt##########\r\n");
+	fw_ctx_save_to_flash(g_ctx);
+	while(1);
 }
 
 static int do_fw(cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])
@@ -152,6 +207,29 @@ static int do_fw(cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])
 		free(boot_vol);
 		boot_vol = NULL;
 		return 0;
+	} else if (strcmp(argv[1], "switch_part") == 0) {
+		char *volume_name = argv[2];
+		struct fw_vol *vol = NULL;
+		if (!volume_name) {
+			printf("volume name be needed!\n");
+			return CMD_RET_USAGE;
+		}
+
+		fw_init();
+		if(g_ctx == NULL) {
+			printf("No vaild firmware info on board!\n");
+			return 0;
+		}
+
+		vol = fw_get_vol_by_name(g_ctx, volume_name);
+		if (!vol) {
+			printf("No such volume(%s) in firmware info\n", volume_name);
+			return 0;
+		}
+
+		volume_switch_part(vol);
+		fw_ctx_save_to_flash(g_ctx);
+		return 0;
 	}
 
 
@@ -176,4 +254,6 @@ U_BOOT_CMD(
 	"         'volume name' specify volume want to set as primary boot volume\n\n"
 	"get_boot_volume\n"
 	"    -Output primary boot volume name\n"
+	"swtich_part <volume name>\n"
+	"    -Switch specified volume active partition\n"
 );

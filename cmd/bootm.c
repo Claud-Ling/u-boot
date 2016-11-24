@@ -918,7 +918,7 @@ static int do_boota(cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])
      */
     memcpy( &header, load_addr, sizeof(boot_img_hdr) );
 
-#ifdef CONFIG_SIGMA_DTV_SECURITY
+#if defined(CONFIG_SIGMA_DTV_SECURITY) && !defined(CONFIG_CMD_FIRMWARE_INFO)
     /*
      * derive bootimg payload size from header
      */

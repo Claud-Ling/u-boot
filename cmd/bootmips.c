@@ -1,5 +1,5 @@
-#include <command.h>
 #include <common.h>
+#include <command.h>
 #include <asm/io.h>
 #include <asm/arch/reg_io.h>
 #include <malloc.h>

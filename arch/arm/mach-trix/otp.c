@@ -4,7 +4,7 @@
 #include <asm/arch/setup.h>
 #include <asm/arch/reg_io.h>
 
-static void __iomem *otp_base = NULL;
+#define otp_base ((void*)OTP_REG_BASE) /*otp base*/
 
 #define OTP_READL(o) readl(otp_base + (o))
 #define OTP_WRITEL(v, o) writel(v, otp_base + (o))
@@ -15,9 +15,9 @@ static void __iomem *otp_base = NULL;
 #if defined(CONFIG_SIGMA_SOC_SX6) || defined(CONFIG_SIGMA_SOC_SX7) || defined(CONFIG_SIGMA_SOC_SX8)
 
 #ifdef CONFIG_SIGMA_SOC_SX6
-# define TURING_REG_BASE 0xf5100000
+# define OTP_REG_BASE 0xf5100000
 #elif defined(CONFIG_SIGMA_SOC_SX7) || defined(CONFIG_SIGMA_SOC_SX8)
-# define TURING_REG_BASE 0xf1040000
+# define OTP_REG_BASE 0xf1040000
 #else
 # error "unknown chip type"
 #endif
