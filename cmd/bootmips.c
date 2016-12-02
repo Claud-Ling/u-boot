@@ -287,7 +287,7 @@ static int mmc_read_data(void *addr, u32 ofs, u32 len)
 	int flag = 0;
 	char cmd_buffer[64];
 
-	sprintf(cmd_buffer, "mmc read %x %x %x", (unsigned int)addr, MMC_ADDR2BLK(ofs), MMC_SIZE2CNT(len));
+	sprintf(cmd_buffer, "mmc read %lx %x %x", (uintptr_t)addr, MMC_ADDR2BLK(ofs), MMC_SIZE2CNT(len));
 	ret = run_command(cmd_buffer, flag);
 	return (ret == 0) ? len : 0;
 }
@@ -690,7 +690,7 @@ static int mdbg_domain_load(int id, void* buff, int len)
 	return sz;
 }
 #else /*CONFIG_CMD_USB && CONFIG_CMD_FAT*/
-static init mdbg_domain_init(void)
+static int mdbg_domain_init(void)
 {
 	return 0;
 }

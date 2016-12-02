@@ -1,7 +1,7 @@
 #include <common.h>
 #include <asm/io.h>
 
-#define MIPS_COMM_BASEREG       0xf5000000 //0x15000000
+#define MIPS_COMM_BASEREG       0xf5000000ul //0x15000000
 #define CMD_MIPS_INTR_MCU_MASK  (1<<3)
 #define CMD_MIPS_RES_MCU_MASK   (1<<4)
 
@@ -13,11 +13,11 @@
 #define CTRLSEG_LEN             (2)
 #define DATASEG_LEN             (16 - CTRLSEG_LEN)
 
-#define MIPS_REGFILE_START      0xf5000010
+#define MIPS_REGFILE_START      0xf5000010ul
 #define MIPS_CTRLSEG_START      MIPS_REGFILE_START
 #define MIPS_DATASEG_START      (MIPS_REGFILE_START + CTRLSEG_LEN)
 
-#define MCU_REGFILE_START       0xf5000030
+#define MCU_REGFILE_START       0xf5000030ul
 #define MCU_CTRLSEG_START       MCU_REGFILE_START
 #define MCU_DATASEG_START       (MCU_REGFILE_START + CTRLSEG_LEN)
 

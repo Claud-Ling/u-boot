@@ -328,7 +328,7 @@ int authenticate_static_env(struct mmc *mmc)
 		goto out;
 	}
 	ALLOC_CACHE_ALIGN_BUFFER(char, data, CONFIG_ENV_SIZE+512);
-	signature =(void *)((unsigned int)data + CONFIG_ENV_SIZE);
+	signature =(void *)((uintptr_t)data + CONFIG_ENV_SIZE);
 	mmc_get_env_addr(mmc, STATIC_ENV, &env_offset);
 
 	ret = read_env(mmc, CONFIG_ENV_SIZE+512, env_offset, data);

@@ -26,6 +26,7 @@
 int main(void)
 {
 #if defined(__UBOOT__)
+	DEFINE(S2RAM_FRAME_SIZE, sizeof(struct s2ram_resume_frame));
 	DEFINE(S2RAM_ENTRY_OFS, offsetof(struct s2ram_resume_frame, S2RAM_ENTRY));
 	DEFINE(S2RAM_START0_OFS, offsetof(struct s2ram_resume_frame, S2RAM_START0));
 	DEFINE(S2RAM_LEN0_OFS, offsetof(struct s2ram_resume_frame, S2RAM_LEN0));

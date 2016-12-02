@@ -6,8 +6,6 @@
 #ifndef __S2RAMCTRL_H__
 #define __S2RAMCTRL_H__
 
-#define S2RAM_FRAME_SIZE	32	/* sizeof struct s2ram_resume_frame */
-
 #ifndef __ASSEMBLY__
 
 /*
@@ -16,7 +14,7 @@
  * and other stuffs are stored during an s2ram operation
  */
 struct s2ram_resume_frame{
-	long data[(S2RAM_FRAME_SIZE) >> 2];
+	long data[8];
 };
 
 #define S2RAM_CRC	data[7]	/* checksum for s2ram resume frame struct */

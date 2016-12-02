@@ -16,7 +16,7 @@ static u32 memtell (int id)
 	u32 bs = 0;
 	/* only probe activated umac */
 	if (umac_is_activated(id)) {
-		u32 base = umac_get_addr(id);
+		unsigned long base = umac_get_addr(id);
 		bs = get_ram_size((long*)base, MAX_MEM_BANK_SIZE);
 		trace("find 0x%08x bytes memory at addr 0x%08x\n", bs, base);
 	}
@@ -36,7 +36,7 @@ static int do_mprobe ( cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[]
 		base = (void*)simple_strtoul(argv[0], NULL, 16);
 		max = simple_strtoul(argv[1], NULL, 16);
 		msz = get_ram_size(base, max);
-		printf("find 0x%08x bytes memory at addr 0x%08x\n", msz, (int)base);
+		printf("find 0x%08x bytes memory at addr %p\n", msz, base);
 	} else {
 		int i;
 		u32 sz[CONFIG_SIGMA_NR_UMACS];

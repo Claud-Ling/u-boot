@@ -1,7 +1,6 @@
 #include <common.h>
 #include <asm/arch/setup.h>
 
-#include <asm/armv7.h>
 #include <asm/io.h>
 #include <linux/compiler.h>
 
@@ -100,7 +99,6 @@
 #define readl_relaxed(reg) readl(reg)
 #define writel_relaxed(val, reg) writel(val, reg)
 #define cpu_relax() barrier()
-#define dsb() CP15DSB
 #define l2cache_base ((void*)L2X0_REG_BASE)
 #ifdef __iomem
 #undef __iomem
@@ -108,6 +106,13 @@
 #define __iomem
 #define SZ_1K 0x00000400
 
+#ifndef CONFIG_ARM64
+# include <asm/armv7.h>
+# define dsb() CP15DSB
+#else
+# define dsb()	\
+	__asm__ volatile("dsb sy\n" : : : "memory")
+#endif
 
 #ifndef CONFIG_SYS_L2CACHE_OFF
 /**************************************************************************/

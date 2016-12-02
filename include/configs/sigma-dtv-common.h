@@ -46,7 +46,7 @@
 #define CONFIG_SYS_MEMTEST_START	CONFIG_SYS_SDRAM_BASE
 #define CONFIG_SYS_MEMTEST_END		0x90000000
 
-#define CONFIG_SYS_MALLOC_LEN		(10*1024*1024)
+#define CONFIG_SYS_MALLOC_LEN		(10*1024*1024) /*TODO: 10M is too much*/
 #define CONFIG_SYS_BOOTPARAMS_LEN	(128*1024)
 
 #define CONFIG_SYS_INIT_SP_ADDR		0x02E00000  /* 32M + 14M location */
@@ -160,6 +160,19 @@
 #define CONFIG_SYS_HZ			    1000
 #define CONFIG_SYS_TIMERBASE 	    0xF5027000
 
+/*
+ * GIC
+ */
+#ifdef CONFIG_SIGMA_TRIX_GICV2
+# define CONFIG_GICV2		1
+#elif defined(CONFIG_SIGMA_TRIX_GICV3)
+# define CONFIG_GICV3		1
+#endif
+
+#if defined(CONFIG_GICV2) || defined(CONFIG_GICV3)
+# define GICD_BASE		0xFFC00000	/*GIC Distributor*/
+# define GICR_BASE		0xFFC40000	/*GIC Redistributor*/
+#endif
 
 /*
  * console
@@ -262,9 +275,9 @@
 /*kernel start*/
 #define CONFIG_CMD_KERNEL
 #define CONFIG_CMD_BOOTA
-
-/*Firmware info*/
-#define CONFIG_CMD_FIRMWARE_INFO
+#ifdef CONFIG_ARM64
+# define CONFIG_CMD_BOOTI
+#endif
 
 #define CONFIG_CMD_CACHE
 #define CONFIG_CMD_REGINFO
@@ -290,6 +303,7 @@
 
 #if defined(CONFIG_TRIX_MMC)
 #   define CONFIG_CMD_MMC
+#   define CONFIG_CMD_FIRMWARE_INFO /*Firmware info*/
 #endif
 
 /*filesystem*/

@@ -46,7 +46,7 @@
  * This structure defines boot param for uboot
  */
 struct bootparam_frame{
-	long data[(BOOTPARAM_FRM_SIZE) >> 2];
+	u32 data[(BOOTPARAM_FRM_SIZE) >> 2];
 };
 
 #define BOOTPARAM_TAIL	data[BOOTPARAM_TAIL_OFS >> 2]
@@ -59,9 +59,9 @@ struct bootparam_frame{
 
 extern struct bootparam_frame boot_params;
 char* sx6_boot_message(void);
-long sx6_boot_device(void);
-long sx6_boot_reason(void);
-long sx6_boot_flags(void);
+u32 sx6_boot_device(void);
+u32 sx6_boot_reason(void);
+u32 sx6_boot_flags(void);
 #endif //__ASSEMBLY__
 
 #endif

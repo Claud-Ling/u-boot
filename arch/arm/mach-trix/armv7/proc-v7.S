@@ -10,7 +10,7 @@
  *  This is the "shell" of the ARMv7 processor support.
  */
 
-#include "macro.S"
+#include "../macro.S"
 
 /* Suspend/resume support: derived from arch/arm/mach-s5pv210/sleep.S */
 .globl	cpu_v7_suspend_size

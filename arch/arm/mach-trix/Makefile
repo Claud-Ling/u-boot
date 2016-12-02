@@ -21,12 +21,16 @@
 # MA 02111-1307 USA
 #
 
-ccflags-y := -D__UBOOT__
-asflags-y := -D__UBOOT__
+ccflags-y := -D__UBOOT__ -I$(src)/$(CPU)
+asflags-y := -D__UBOOT__ -I$(src)/$(CPU)
 
-obj-y += lowlevel_init.o timer.o reset.o cache.o otp.o smc-stub.o umac.o
+include $(src)/$(CPU)/arch.mk
 
-obj-$(CONFIG_TEST_S2RAM) += s2ramtest.o proc-v7.o sleep.o suspend.o
+header-y += $(CPU)/
+
+obj-y += timer.o reset.o cache.o otp.o smc-stub.o umac.o
+
+obj-$(CONFIG_TEST_S2RAM) += suspend.o
 obj-$(CONFIG_S2RAM_CHECKSUM) += crc32.o s2ramcrc.o
 
 obj-$(CONFIG_DTV_SMC) += smc-common.o
@@ -62,7 +66,7 @@ endef
 # Files generated that shall be removed upon make clean
 clean-files := asm-offsets.h asm-offsets.s
 
-$(obj)/s2ramtest.o $(obj)/s2ramcrc.o: $(obj)/asm-offsets.h
+$(obj)/s2ramcrc.o: $(obj)/asm-offsets.h
 
 $(obj)/asm-offsets.s: $(src)/asm-offsets.c FORCE
 	$(Q)mkdir -p $(dir $@)

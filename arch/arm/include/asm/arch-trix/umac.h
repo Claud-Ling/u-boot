@@ -374,7 +374,7 @@ struct pman_con{
 	volatile PMAN_CON_HUB_ADDRReg hub2_end_addr;	/* +0x044 */
 	volatile U32 pad1[NW(0x048,0xffc)];	/* +0x048 */
 	volatile U32 module_id;			/* +0xffc */
-#elif defined (CONFIG_SIGMA_SOC_SX8)
+#elif defined (CONFIG_SIGMA_SOC_SX8) || defined(CONFIG_SIGMA_SOC_UNION) //TODO: union spg
 # define PMAN_HUB_REMAP
 	volatile U32 pad0[NW(0x000,0x03c)];	/* +0x000 */
 	volatile PMAN_CON_HUB_ADDRReg hub0_start_addr;	/* +0x03c */

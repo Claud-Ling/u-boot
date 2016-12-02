@@ -13,9 +13,9 @@
  */
 
 #include <config.h>
-#include "s2ramctrl.h"
-#include "asm-offsets.h"
-#include "macro.S"
+#include "../asm-offsets.h"
+#include "../s2ramctrl.h"
+#include "../macro.S"
 
 #define DEBUG
 

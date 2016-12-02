@@ -25,7 +25,7 @@
 # define trace_ch	bl	serial_putc
 #elif defined(__UBOOT__)
 # include <config.h>
-# include "asm-offsets.h"
+# include "../asm-offsets.h"
 # include <asm/arch/umac.h>
 # define __CONFIG_SRAM_SUSPEND__
 # define trace_str
@@ -42,7 +42,7 @@
 # define trace_ch
 #endif
 
-#include "umac_dev.inc"
+#include "../umac_dev.inc"
 
 #ifndef CONFIG_SIGMA_NR_UMACS
 	#error "CONFIG_SIGMA_NR_UMACS is NOT set"
@@ -164,29 +164,7 @@ trb_ofs_umac\id:
  *void __send_mcu_cmd(unsigned char cmd, void* data, int len);
  */
 ENTRY(__send_mcu_cmd)
-	stmfd   sp!, {r4 - r11, lr}
-	ldr	r4, mcu_reg_base
-	add	r5, r4, #SHREG_MBASE_OFS
-	mov	r6, #0x11
-	strb	r6, [r5], #1	@M0
-	mov	r6, #0x8
-	strb	r6, [r5], #1	@M1
-	mov	r6, #0xff
-	strb	r6, [r5], #1	@M2
-	strb	r0, [r5], #1	@M3
-	cmp	r2, #0
-	beq	2f
-	add	r7, r1, r2
-1:
-	ldrb	r8, [r1], #1	@copy data
-	strb	r8, [r5], #1
-	cmp	r1, r7
-	blo	1b
-2:
-	ldrb	r6, [r4]
-	eor	r6, #0x8	@reverse intr
-	strb	r6, [r4]
-	ldmfd   sp!, {r4 - r11, pc}
+	ret
 ENDPROC(__send_mcu_cmd)
 
 
@@ -197,11 +175,7 @@ ENDPROC(__send_mcu_cmd)
  *	r0  - 0 on success, otherwise non-zero
  */
 ENTRY(__query_mcu_cmd)
-	stmfd   sp!, {r4 - r5, lr}
-	ldr	r4, mcu_reg_base
-	ldrb	r5, [r4, #SHREG_E3_OFS]
-	subs	r0, r5
-	ldmfd   sp!, {r4 - r5, pc}
+	ret
 ENDPROC(__query_mcu_cmd)
 
 /*
@@ -210,12 +184,7 @@ ENDPROC(__query_mcu_cmd)
  * return: none
  */
 ENTRY(__ack_mcu_cmd)
-	stmfd   sp!, {r4 - r5, lr}
-	ldr	r4, mcu_reg_base
-	ldrb	r5, [r4]
-	eor	r5, #0x10
-	strb	r5, [r4]		@reverse resp
-	ldmfd   sp!, {r4 - r5, pc}
+	ret
 ENDPROC(__query_mcu_cmd)
 
 #ifdef MCUCOMM_SUPPORT_TIMEOUT
@@ -228,50 +197,7 @@ ENDPROC(__query_mcu_cmd)
  * return: 0 on success, otherwise non-zero
  */
 ENTRY(__wait_event_timeout)
-	stmfd   sp!, {r4 - r11, lr}
-	mov	r4, r0
-	mov	r10, r1
-	mov	r11, #1
-	mov	r7, #0
-	cmp	r1, #-1		@infinite loop?
-	beq	1f		@looping
-	ldr	r5, timer0_reg_base
-	ldr	r6, [r5, #TIMER0_OFS_TCRN]	@TIMER0_TCRN
-	cmp	r6, #0
-	bne	1f		@checking
-	mov	r6, #-1
-	str	r6, [r5, #TIMER0_OFS_TCVRN]	@TIMER0_TCVRN
-	mov	r6, #0x3	@start timer
-	str	r6, [r5, #TIMER0_OFS_TCRN]	@TIMER0_TCRN
-	mov	r7, #1		@set flag
-1:
-	mov	r0, r4
-	blx	r2		@chk_evt(arg)
-	cmp	r0, #0
-	bne	2f
-	mov	r11, #0		@ok
-	b	4f
-2:
-	cmp	r1, #-1		@infinite loop?
-	beq	1b		@looping
-	cmp	r10, #0		@timeout?
-	beq	4f
-	sub	r10, #1
-	ldr	r8, [r5, #TIMER0_OFS_TRVRN]	@TIMER0_TRVRN
-3:
-	ldr	r9, [r5, #TIMER0_OFS_TRVRN]	@TIMER0_TRVRN
-	sub	r9, r8
-	cmp	r9, #200	@wait 1us
-	blo	3b		@waiting
-	b	1b		@try again
-4:
-	cmp	r7, #1
-	bne	5f		@out
-	mov	r6, #0		@stop timer
-	str	r6, [r5, #TIMER0_OFS_TCRN]	@TIMER0_TCRN
-5:
-	mov	r0, r11
-	ldmfd   sp!, {r4 - r11, pc}
+	ret
 ENDPROC(__wait_event_timeout)
 #endif  //MCUCOMM_SUPPORT_TIMEOUT
 
@@ -285,18 +211,7 @@ ENDPROC(__wait_event_timeout)
  *	r1  - data[0] on success, otherwise undefined
  */
 ENTRY(__get_mcu_cmd)
-	stmfd   sp!, {r4, lr}
-#ifdef MCUCOMM_SUPPORT_TIMEOUT
-	adr	r2, __query_mcu_cmd
-	bl	__wait_event_timeout
-#else
-	mov	r4, r0
-1:
-	mov	r0, r4
-	bl	__query_mcu_cmd
-	bne	1b		@tryagain
-#endif
-	ldmfd   sp!, {r4, pc}
+	ret
 ENDPROC(__get_mcu_cmd)
 
 /*
@@ -305,21 +220,10 @@ ENDPROC(__get_mcu_cmd)
  * return: 1 on YES, otherwise 0.
  */
 ENTRY(umac_is_activated)
-	cmp	r0, #CONFIG_SIGMA_NR_UMACS
-	movcs	r0, #0
-	bcs	2f
-	adr	r2, trix_udev_tbl
-	umac_get_dev	r1, r2, r0
-	umac_dev_quirks	r2, r1
-	tst	r2, #UMAC_QUIRK_BROKEN_MAC
-	bne	1f
-	umac_dev_mac	r2, r1
-	ldr	r0, [r2, #MCTL_OFS_IF_ENABLE]
-	adds	r0, r0, #0
-1:
-	movne	r0, #1
-2:
-	bx	lr
+	cmp	x0, #0
+	mov	x0, #0
+	cset	x0, eq
+	ret
 ENDPROC(umac_is_activated)
 
 #ifdef CONFIG_SIGMA_PM_UMAC_PHY
@@ -347,37 +251,7 @@ ACIOCR_POWER_DOWN_VAL:
  * return: 0 on success, otherwise non-zero
  */
 ENTRY(__umac_phy_aco_control)
-	/*
-	 * ACIOCR
-	 * bit[1] - ACOE
-	 * on disable: set ACIOCR to VAL with mask MSK
-	 * on enable:  set ACOE to 1'b1
-	 */
-	cmp	r1, #0
-	movne	r2, #(1 << ACIOCR_BIT_ACOE)	@ on enable
-	ldreq	r2, [r0, #PUB_OFS_PHY_ACIOCR]
-	ldreq	r3, ACIOCR_POWER_DOWN_MSK
-	biceq	r2, r3
-	ldreq	r3, ACIOCR_POWER_DOWN_VAL
-	orreq	r2, r3				@ on disable
-	str	r2, [r0, #PUB_OFS_PHY_ACIOCR]
-
-	/*
-	 * DXCCR
-	 * bit[3]    - DXPDD
-	 * bit[4]    - DXPDR
-	 * bit[8:5]  - DQSRES
-	 * on disable: set DXPDD to 1'b1 set DXPDR to 1'b1, set DQSRES to 4'b0000
-	 * on enable:  set DXPDD to 1'b0 set DXPDR to 1'b0, set DQSRES to 4'b0100
-	 */
-	ldr	r2, [r0, #PUB_OFS_PHY_DXCCR]
-	bic	r2, #(1 << DXCCR_BIT_DXPDD | 1 << DXCCR_BIT_DXPDR | DXCCR_DQSRES_MASK)
-	cmp	r1, #0
-	orreq	r2, #(1 << DXCCR_BIT_DXPDD | 1 << DXCCR_BIT_DXPDR) @ on disable
-	orrne	r2, #(0x4 << DXCCR_DQSRES_SHIFT) @ on enable
-	str	r2, [r0, #PUB_OFS_PHY_DXCCR]
-	mov	r0, #0
-	mov	pc, lr
+	ret
 ENDPROC(__umac_phy_aco_control)
 #endif	/* CONFIG_SIGMA_PM_UMAC_PHY */
 
@@ -390,14 +264,7 @@ ENDPROC(__umac_phy_aco_control)
  * return: 0 on success, otherwise non-zero
  */
 ENTRY(__pctl_set_mode)
-	stmfd   sp!, {r3, lr}
-	str	r1, [r0, #PCTL_OFS_SCTL]
-1:
-	ldr	r3, [r0, #PCTL_OFS_STAT]
-	cmp	r3, r2
-	bne	1b		@looping
-	mov	r0, #0
-	ldmfd   sp!, {r3, pc}
+	ret
 ENDPROC(__pctl_set_mode)
 
 /*
@@ -408,51 +275,7 @@ ENDPROC(__pctl_set_mode)
  * return: 0 on success, otherwise non-zero
  */
 ENTRY(__sdram_enter_lowpower)
-	stmfd   sp!, {r4, r5, lr}
-	mov	r4, r0
-	mov	r5, r1
-	bl	umac_is_activated
-	cmp	r0, #0
-	moveq	r0, #1			@inactivated?
-	beq	2f
-
-	adr	r2, trix_udev_tbl
-	umac_get_dev	r3, r2, r4
-	umac_dev_phy	r4, r3
-	cmp	r5, #0
-	beq	1f
-	/*on resume*/
-	mov	r0, r4
-	mov	r1, #PCTL_CMD_CFG
-	mov	r2, #PCTL_STAT_CONFIG
-	bl	__pctl_set_mode
-	mov	r0, r4
-	mov	r1, #PCTL_CMD_GO
-	mov	r2, #PCTL_STAT_ACCESS
-	bl	__pctl_set_mode
-	mov	r0, r4
-	mov	r1, #PCTL_CMD_SLEEP
-	mov	r2, #PCTL_STAT_LOWPOWER
-	bl	__pctl_set_mode
-	b	2f
-1:
-	/*on suspend*/
-	mov	r0, r4
-	mov	r1, #PCTL_CMD_SLEEP
-	mov	r2, #PCTL_STAT_LOWPOWER
-	bl	__pctl_set_mode
-
-	mov	r1, #0x0
-	str	r1, [r4, #PCTL_OFS_TREFI]
-	str	r1, [r4, #PCTL_OFS_PHYPVTUPDI]
-	str	r1, [r4, #PCTL_OFS_PVTUPDI]
-#ifdef CONFIG_SIGMA_PM_UMAC_PHY
-	mov	r0, r4
-	mov	r1, #0			@disable
-	bl	__umac_phy_aco_control
-#endif
-2:
-	ldmfd   sp!, {r4, r5, pc}
+	ret
 ENDPROC(__sdram_enter_lowpower)
 
 /*
@@ -463,41 +286,7 @@ ENDPROC(__sdram_enter_lowpower)
  * return: 0 on success, otherwise non-zero
  */
 ENTRY(__sdram_leave_lowpower)
-	stmfd   sp!, {r4, r5, lr}
-	mov	r4, r0
-	mov	r5, r1
-	bl	umac_is_activated
-	cmp	r0, #0
-	moveq	r0, #1			@inactivated?
-	beq	2f
-
-	adr	r2, trix_udev_tbl
-	umac_get_dev	r3, r2, r4
-	umac_dev_phy	r4, r3
-
-	mov	r2, #0x27
-	str	r2, [r4, #PCTL_OFS_TREFI]
-	mov	r0, r4
-	mov	r1, #PCTL_CMD_WAKEUP
-	mov	r2, #PCTL_STAT_ACCESS
-	bl	__pctl_set_mode
-	cmp	r5, #0
-	beq	1f
-	/*on resume*/
-	mov	r0, r4
-	mov	r1, #PCTL_CMD_CFG
-	mov	r2, #PCTL_STAT_CONFIG
-	bl	__pctl_set_mode
-	b	2f
-1:
-	/*on suspend*/
-#ifdef CONFIG_SIGMA_PM_UMAC_PHY
-	mov	r0, r4
-	mov	r1, #1			@enable
-	bl	__umac_phy_aco_control
-#endif
-2:
-	ldmfd   sp!, {r4, r5, pc}
+	ret
 ENDPROC(__sdram_leave_lowpower)
 
 #ifdef __CONFIG_SRAM_RESUME__
@@ -515,41 +304,8 @@ ENDPROC(__sdram_leave_lowpower)
  *	-1 - UNKNOWN
  */
 ENTRY(s2ramctl_get_boot_mode)
-	stmfd	sp!, {lr}
-	ldr	r0, boot_mode
-	cmp	r0, #-1
-	bne	4f
-	stmfd   sp!, {r4 - r8}
-	mov	r0, #MCU_CMD_POWERMODE
-	mov	r1, #0			@try only once
-	bl	__get_mcu_cmd
-	cmp	r0, #0			@error?
-	bne	2f
-	ldr	r4, mcu_reg_base
-	add	r5, r4, #SHREG_E4_OFS
-	ldrb	r1, [r5], #1		@bootmode
-	add	r6, r5, #4
-	adr	r7, resume_entry_ptr
-1:
-	ldrb	r8, [r5], #1
-	strb	r8, [r7], #1		@get entry point
-	cmp	r5, r6
-	blt	1b
-
-	bl	__ack_mcu_cmd
-	cmp	r1, #0			@normal?
-	beq	2f
-	cmp	r1, #1			@standby?
-	bne	2f			@otherwise, error
-	mov	r0, #BOOT_MODE_STANDBY	@standby boot
-	b	3f
-2:
-	mov	r0, #BOOT_MODE_NORMAL	@normal boot
-3:
-	str	r0, boot_mode
-	ldmfd   sp!, {r4 - r8}
-4:
-	ldmfd	sp!, {pc}
+	mov	x0, #BOOT_MODE_NORMAL
+	ret
 ENDPROC(s2ramctl_get_boot_mode)
 
 /*
@@ -559,32 +315,8 @@ ENDPROC(s2ramctl_get_boot_mode)
  * return: 0 on success, otherwise non-zero
  */
 ENTRY(s2ramctl_sdram_in_access)
-	stmfd   sp!, {r4, lr}
-	umac_lowpower_mode 0, 1
-	umac_lowpower_mode 1, 1
-	umac_lowpower_mode 2, 1
-	mov	r0, #HOST_CMD_RMODE_DISABLE
-	mov	r1, #0
-	mov	r2, #0
-	bl	__send_mcu_cmd
-	mov	r0, #MCU_CMD_ACK_RMODE_OFF
-	ldr	r1, mcu_timeout_us
-	bl	__get_mcu_cmd
-	cmp	r0, #0			@error?
-	bne	1f			@out
-	bl	__ack_mcu_cmd
-#ifdef HOST_CTRL_STB_GPIO
-	ldr	r1, mcu_reg_base
-	ldrb	r2, [r1, #MCU_REG_GPIO_OFS]
-	orr	r2, #0xA0		@set bit[5] and bit[7]
-	strb	r2, [r1]
-#endif
-	umac_access_mode 0, 1
-	umac_access_mode 1, 1
-	umac_access_mode 2, 1
-	mov	r0, #0
-1:
-	ldmfd   sp!, {r4, pc}
+	mov	x0, #0
+	ret
 ENDPROC(s2ramctl_sdram_in_access)
 
 .macro trace_resume_entry
@@ -612,11 +344,8 @@ ENDPROC(s2ramctl_sdram_in_access)
  * return: never return
  */
 ENTRY(s2ramctl_cpu_do_resume)
-	trace_resume_entry
-	ldr	r0, resume_entry_ptr
-	ldr	r0, [r0]		@resume entry
-	blx	r0
 1:	b	1b			@shall not reach here
+	ret
 ENDPROC(s2ramctl_cpu_do_resume)
 
 .macro trace_tr_addr
@@ -651,42 +380,8 @@ ENDPROC(s2ramctl_cpu_do_resume)
  * return: 0 on success. Otherwise none-zero
  */
 ENTRY(__sdram_set_tr_area)
-	stmfd   sp!, {r4 - r6, lr}
-	mov	r4, r0
-	bl	umac_is_activated
-	cmp	r0, #0
-	moveq	r0, #1			@inactivated?
-	beq	2f
-
-	adr	r2, trix_udev_tbl
-	umac_get_dev	r3, r2, r4
-	umac_dev_phy	r5, r3		@phy base
-
-	adr	r2, trb_tbl
-	ldr	r0, [r2, r4, lsl #2]	@tr buff
-	trace_tr_addr
-
-	mov	r2, r0, lsr #27
-	and	r2, #0xf
-	mov	r3, r2, lsl #25		@[28..25]
-	mov	r2, r0, lsl #8
-	mov	r2, r2, lsr #23
-	orr	r3, r2, lsl #16		@[24..16]
-	mov	r2, r0, lsr #24
-	and	r2, #0x7
-	orr	r3, r2, lsl #13		@[15..13]
-
-	add	r2, r5, #(PUB_OFS_TR_ADDR0 & (~0xf))
-	add	r2, r2, #(PUB_OFS_TR_ADDR0 & 0xf)
-	mov	r6, #4
-1:
-	str	r3, [r2], #4
-	add	r3, #8
-	subs	r6, r6, #1
-	bne	1b
-	mov	r0, #0
-2:
-	ldmfd   sp!, {r4 - r6, pc}
+	mov	x0, #0
+	ret
 ENDPROC(__sdram_set_tr_area)
 
 /*
@@ -696,12 +391,8 @@ ENDPROC(__sdram_set_tr_area)
  * return: 0 on success, otherwise non-zero
  */
 ENTRY(s2ramctl_set_tr_area)
-	stmfd   sp!, {lr}
-	umac_set_trb 0
-	umac_set_trb 1
-	umac_set_trb 2
-	mov	r0, #0
-	ldmfd   sp!, {pc}
+	mov	x0, #0
+	ret
 ENDPROC(s2ramctl_set_tr_area)
 
 /*
@@ -731,21 +422,8 @@ ENDPROC(s2ramctl_set_tr_area)
  * return:  0 on success, otherwise non-zero
  */
 ENTRY(__umac_phy_output_enable)
-	stmfd   sp!, {r4 - r5, lr}
-	mov	r4, r0
-	mov	r5, r1
-	bl	umac_is_activated
-	cmp	r0, #0
-	moveq	r0, #1			@inactivated?
-	beq	1f
-
-	adr	r2, trix_udev_tbl
-	umac_get_dev	r3, r2, r4
-	umac_dev_phy	r0, r3
-	mov	r1, r5
-	bl	__umac_phy_aco_control
-1:
-	ldmfd   sp!, {r4 - r5, pc}
+	mov	x0, #0
+	ret
 ENDPROC(__umac_phy_output_enable)
 
 /*
@@ -755,12 +433,8 @@ ENDPROC(__umac_phy_output_enable)
  * return: 0 on success, otherwise non-zero
  */
 ENTRY(s2ramctl_phy_enable)
-	stmfd   sp!, {lr}
-	umac_aco_enable 0, 1
-	umac_aco_enable 1, 1
-	umac_aco_enable 2, 1
-	mov	r0, #0
-	ldmfd   sp!, {pc}
+	mov	x0, #0
+	ret
 ENDPROC(s2ramctl_phy_enable)
 #endif /*CONFIG_SIGMA_PM_UMAC_PHY*/
 
@@ -803,18 +477,7 @@ trb_tbl:
  * return: none
  */
 ENTRY(__prepare_sram_selfrefresh)
-	stmfd   sp!, {r4 - r5, lr}
-	umac_preload_reg 0, r4, r5
-	umac_preload_reg 1, r4, r5
-	umac_preload_reg 2, r4, r5
-
-#ifdef MCUCOMM_SUPPORT_TIMEOUT
-	ldr	r4, timer0_reg_base
-	ldr	r4, [r4, #TIMER0_OFS_TCVRN]
-#endif
-	ldr	r4, mcu_reg_base
-	ldrb	r4, [r4, #SHREG_M0_OFS]
-	ldmfd   sp!, {r4 - r5, pc}
+	ret
 ENDPROC(__prepare_sram_selfrefresh)
 
 /*
@@ -824,36 +487,8 @@ ENDPROC(__prepare_sram_selfrefresh)
  * return: 0 on success, otherwise non-zero
  */
 ENTRY(s2ramctl_sdram_in_selfrefresh)
-	stmfd   sp!, {lr}
-	bl	__prepare_sram_selfrefresh
-	umac_lowpower_mode 0, 0
-	umac_lowpower_mode 1, 0
-	umac_lowpower_mode 2, 0
-	mov	r0, #HOST_CMD_RMODE_ENABLE
-	mov	r1, #0
-	mov	r2, #0
-	bl	__send_mcu_cmd
-	mov	r0, #MCU_CMD_ACK_RMODE_ON
-	ldr	r1, mcu_timeout_us
-	bl	__get_mcu_cmd
-	cmp	r0, #0
-	bne	1f			@error
-	bl	__ack_mcu_cmd
-#ifdef HOST_CTRL_STB_GPIO
-	ldr	r1, mcu_reg_base
-	ldrb	r2, [r1, #MCU_REG_GPIO_OFS]
-	orr	r2, #0x20		@set bit[5]
-	bic	r2, #0x80		@clear bit[7]
-	strb	r2, [r1]
-#endif
-	b	2f			@out
-1:
-	umac_access_mode 0, 0
-	umac_access_mode 1, 0
-	umac_access_mode 2, 0
-	mov	r0, #1			@failed
-2:
-	ldmfd   sp!, {pc}
+	mov 	x0, #0
+	ret
 ENDPROC(s2ramctl_sdram_in_selfrefresh)
 
 /*
@@ -862,16 +497,8 @@ ENDPROC(s2ramctl_sdram_in_selfrefresh)
  * return: 0 on success, otherwise non-zero
  */
 ENTRY(s2ramctl_system_poweroff)
-	stmfd   sp!, {lr}
-	ldr	r0, resume_entry_ptr
-	str	r0, [sp, #-4]!
-	mov	r0, #HOST_CMD_POWEROFF
-	mov	r1, sp
-	mov	r2, #4
-	bl	__send_mcu_cmd
-	add	sp, #4
-	mov	r0, #0
-	ldmfd   sp!, {pc}
+	mov	x0, #1
+	ret
 ENDPROC(s2ramctl_system_poweroff)
 
 /*
@@ -881,8 +508,7 @@ ENDPROC(s2ramctl_system_poweroff)
  * return: 0 on success, otherwise non-zero
  */
 ENTRY(s2ramctl_set_resume_entry)
-	str	r0, resume_entry_ptr
-	mov	pc, lr
+	ret
 ENDPROC(s2ramctl_set_resume_entry)
 
 #endif /*__CONFIG_SRAM_SUSPEND__*/

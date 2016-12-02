@@ -1,3 +1,6 @@
+config ARCH_SIGMA_TRIX
+	bool
+
 if ARCH_SIGMA_TRIX
 
 menu "Sigma DTV SOC"
@@ -5,16 +8,24 @@ choice
 	prompt "Soc series"
 
 config SIGMA_SOC_UXLB
+	depends on ARCH_SIGMA_TRIX_ARM
 	bool "UXLB chipset"
 
 config SIGMA_SOC_SX6
+	depends on ARCH_SIGMA_TRIX_ARM
 	bool "SX6 chipset"
 
 config SIGMA_SOC_SX7
+	depends on ARCH_SIGMA_TRIX_ARM
 	bool "SX7 chipset"
 
 config SIGMA_SOC_SX8
+	depends on ARCH_SIGMA_TRIX_ARM
 	bool "SX8 chipset"
+
+config SIGMA_SOC_UNION
+	depends on ARCH_SIGMA_TRIX_ARM64
+	bool "Union chipset"
 
 endchoice
 
@@ -31,19 +42,31 @@ config TRIX_MMC
 config TRIX_NAND
 	bool "Nand boot"
 
+config TRIX_NONE
+	bool "None"
+
 endchoice
 
-if SIGMA_SOC_SX6 || SIGMA_SOC_UXLB
-config SIGMA_NR_UMACS
-	int "Set counts of UMAC controller"
-	default 2
-endif
+choice
+	prompt "General Interrupt Controller"
 
-if SIGMA_SOC_SX7 || SIGMA_SOC_SX8
+config SIGMA_TRIX_GICV
+	bool "GICv1 (i.e. Cortex-A9)"
+	depends on ARCH_SIGMA_TRIX_ARM
+
+config SIGMA_TRIX_GICV2
+	bool "GICv2 (i.e. GIC-400)"
+
+config SIGMA_TRIX_GICV3
+	bool "GICv3 (i.e. GIC-500)"
+
+endchoice
+
 config SIGMA_NR_UMACS
 	int "Set counts of UMAC controller"
-	default 3
-endif
+	default 2 if SIGMA_SOC_SX6 || SIGMA_SOC_UXLB
+	default 3 if SIGMA_SOC_SX7 || SIGMA_SOC_SX8
+	default 1
 
 menu "Sigma DTV features"
 
@@ -71,6 +94,7 @@ config SIGMA_MCONFIG
 
 config SIGMA_AUTOUPDATE
 	bool "Auto update from USB"
+	depends on USB
 
 config TRIX_TIMESTAMP
 	bool "Use timer0 get high percision time stamp"
@@ -86,7 +110,9 @@ config SIGMA_DTV_SECURITY
 endmenu
 endmenu
 config SYS_SOC
-	default "trix"
+	string
+	default "trix" if ARCH_SIGMA_TRIX
+	default "trix64" if ARCH_SIGMA_TRIX_ARM64
 
 source "board/sigmadesigns/trix/Kconfig"
 

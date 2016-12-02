@@ -2,8 +2,6 @@
 #include <command.h>
 #include <asm/io.h>
 
-#include <asm/armv7.h>
-
 #ifdef CONFIG_SIGMA_DTV_SECURITY
 /*defined in trix_emmc/security/security_boot.c*/
 extern int authenticate_image(void *img, int len, void* key, void* sig);

@@ -577,9 +577,19 @@ config ARCH_ZYNQMP
 	select DM_MMC
 	select DM_SERIAL
 
-config ARCH_SIGMA_TRIX
-	bool "Sigma DTV platform"
+config ARCH_SIGMA_TRIX_ARM
+	bool "Sigma DTV ARM platform"
 	select CPU_V7
+	select ARCH_SIGMA_TRIX
+	  help
+	  Support for sigma DTV ARM platform. It features N x A9 CPU
+
+config ARCH_SIGMA_TRIX_ARM64
+	bool "Sigma DTV ARM64 platform"
+	select ARM64
+	select ARCH_SIGMA_TRIX
+	  help
+	  Support for sigma DTV ARM64 platform. It features N x A53 CPU
 
 config TEGRA
 	bool "NVIDIA Tegra"

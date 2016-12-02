@@ -45,7 +45,7 @@ static void print_memory(const void *mem, unsigned len)
 {
 #define MAX_PRINT_MEM_SIZE 256
 	int i, total;
-	int *start = (int*)((int)mem & (~3));
+	int *start = (int*)((long)mem & (~3));
 	total = (((MAX_PRINT_MEM_SIZE > len) ? len : MAX_PRINT_MEM_SIZE) + 3 ) >> 2;
 	for (i = 0; i < total; i ++)
 	{
@@ -53,7 +53,7 @@ static void print_memory(const void *mem, unsigned len)
 		{
 			if (i != 0)
 				PDEBUG("\n");
-			PDEBUG("%08x: ", (int)(start + i));
+			PDEBUG("%08lx: ", (long)(start + i));
 		}
 		PDEBUG("%08x ", *(start+i));
 	}
@@ -70,7 +70,7 @@ int s2ram_set_frame(void *entry, void *mem0, unsigned len0, void *mem1, unsigned
 	{
 		vmem = MMAP(mem0, len0);
 		frame->S2RAM_CRC0 = GET_CRC32(vmem, len0);
-		PDEBUG("------mem#0 [0x%08x],CRC=0x%08x------\n", (int)mem0, (int)frame->S2RAM_CRC0);
+		PDEBUG("------mem#0 [0x%08lx],CRC=0x%08lx------\n", (long)mem0, frame->S2RAM_CRC0);
 		print_memory(vmem, len0);
 		MUNMAP(vmem);
 	}
@@ -80,12 +80,12 @@ int s2ram_set_frame(void *entry, void *mem0, unsigned len0, void *mem1, unsigned
 	{
 		vmem = MMAP(mem1, len1);
 		frame->S2RAM_CRC1 = GET_CRC32(vmem, len1);
-		PDEBUG("------mem#1 [0x%08x],CRC=0x%08x------\n", (int)mem1, (int)frame->S2RAM_CRC1);
+		PDEBUG("------mem#1 [0x%08lx],CRC=0x%08lx------\n", (long)mem1, frame->S2RAM_CRC1);
 		print_memory(vmem, len1);
 		MUNMAP(vmem);
 	}
-	frame->S2RAM_CRC = GET_CRC32(frame, S2RAM_FRAME_SIZE - 4);
-	PDEBUG("------frame [0x%08x],CRC=0x%08x------\n", (int)frame, (int)frame->S2RAM_CRC);
+	frame->S2RAM_CRC = GET_CRC32(frame, S2RAM_FRAME_SIZE - sizeof(frame->S2RAM_CRC));
+	PDEBUG("------frame [0x%08lx],CRC=0x%08lx------\n", (long)frame, frame->S2RAM_CRC);
 	print_memory(frame, S2RAM_FRAME_SIZE);
 	PDEBUG("---------------------------------------------\n");
 	FLUSH_CACHE(frame, S2RAM_FRAME_SIZE);
@@ -95,8 +95,8 @@ int s2ram_set_frame(void *entry, void *mem0, unsigned len0, void *mem1, unsigned
 int s2ram_check_crc(struct s2ram_resume_frame* frame)
 {
 	unsigned long crc32 = -1l;
-	crc32 = GET_CRC32(frame, S2RAM_FRAME_SIZE - 4);
-	PDEBUG("------frame [0x%08x],CRC=0x%08x------\n", (int)frame, (int)crc32);
+	crc32 = GET_CRC32(frame, S2RAM_FRAME_SIZE - sizeof(frame->S2RAM_CRC));
+	PDEBUG("------frame [0x%08lx],CRC=0x%08lx------\n", (long)frame, crc32);
 	print_memory(frame, S2RAM_FRAME_SIZE);
 	if (crc32 != frame->S2RAM_CRC)
 	{
@@ -106,24 +106,24 @@ int s2ram_check_crc(struct s2ram_resume_frame* frame)
 	if (frame->S2RAM_START0 && frame->S2RAM_LEN0 > 0)
 	{
 		crc32 = GET_CRC32(frame->S2RAM_START0, frame->S2RAM_LEN0);
-		PDEBUG("------mem#0 [0x%08x],CRC=0x%08x------\n", (int)frame->S2RAM_START0, (int)crc32);
+		PDEBUG("------mem#0 [0x%08lx],CRC=0x%08lx------\n", frame->S2RAM_START0, crc32);
 		print_memory((void*)frame->S2RAM_START0, frame->S2RAM_LEN0);
 		if (crc32 != frame->S2RAM_CRC0)
 		{
-			PDEBUG("mem[%08x - %08x]: CRC error!\n", (int)frame->S2RAM_START0,
-				(int)(frame->S2RAM_START0 + frame->S2RAM_LEN0));
+			PDEBUG("mem[%08lx - %08lx]: CRC error!\n", frame->S2RAM_START0,
+				(frame->S2RAM_START0 + frame->S2RAM_LEN0));
 			goto FAIL;
 		}
 	}
 	if (frame->S2RAM_START1 && frame->S2RAM_LEN1 > 0)
 	{
 		crc32 = GET_CRC32(frame->S2RAM_START1, frame->S2RAM_LEN1);
-		PDEBUG("------mem#1 [0x%08x],CRC=0x%08x------\n", (int)frame->S2RAM_START1, (int)crc32);
+		PDEBUG("------mem#1 [0x%08lx],CRC=0x%08lx------\n", frame->S2RAM_START1, crc32);
 		print_memory((void*)frame->S2RAM_START1, frame->S2RAM_LEN1);
 		if (crc32 != frame->S2RAM_CRC1)
 		{
-			PDEBUG("mem[%08x - %08x]: CRC error!\n", (int)frame->S2RAM_START1,
-				(int)(frame->S2RAM_START1 + frame->S2RAM_LEN1));
+			PDEBUG("mem[%08lx - %08lx]: CRC error!\n", frame->S2RAM_START1,
+				(frame->S2RAM_START1 + frame->S2RAM_LEN1));
 			goto FAIL;
 		}
 	}

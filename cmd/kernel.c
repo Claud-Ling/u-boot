@@ -159,7 +159,7 @@ int do_crc_start_kernel (cmd_tbl_t *cmdtp, int flag, int argc, char * const argv
 			printf("no found cmdline,use default!\n");
 			linux_cmdline = KERNEL_CMD_LINE_DEFAULT;
 		}else{
-			printf("get cmdline 0x%x\n",(unsigned int)linux_cmdline);
+			printf("get cmdline %p\n",linux_cmdline);
 		}
 
 		p = (kernel_entry_t)(addr); 
@@ -259,7 +259,7 @@ int do_start_kernel (cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])
 			printf("no found cmdline,use default!\n");
 			linux_cmdline = KERNEL_CMD_LINE_DEFAULT;
 		}else{
-			printf("get cmdline 0x%x\n",(unsigned int)linux_cmdline);
+			printf("get cmdline %p\n",linux_cmdline);
 		}
 		
 		p = (kernel_entry_t)(addr); 

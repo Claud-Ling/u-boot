@@ -1,6 +1,6 @@
 #include <config.h>
 
-#include "macro.S"
+#include "../macro.S"
 
 /*
  * Save CPU state for a suspend.  This saves the CPU general purpose

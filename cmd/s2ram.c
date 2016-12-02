@@ -53,7 +53,7 @@ static int do_s2ram ( cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])
 		len1 = simple_strtoul( argv[4], NULL, 16 );
 	}
 
-	printf(" ***** resume entry: 0x%08x ****\n", (int)cpu_resume);
+	printf(" ***** resume entry: %p ****\n", cpu_resume);
 	s2ramtest_set_entry(cpu_resume, mem0, len0, mem1, len1);
 	push_sram_idle();
 	ret = cpu_suspend(SRAM_SP_START, s2ramtest_finish_suspend);

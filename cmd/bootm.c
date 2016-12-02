@@ -937,10 +937,10 @@ static int do_boota(cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])
     kernel_img  =  load_addr + header.page_size;
     ramdisk_img =  kernel_img + (kernel_num_pages * header.page_size);
 
-    printf( "kernel: 0x%08x\n", (unsigned int)kernel_img );
-    printf( "ram disk: 0x%08x\n", (unsigned int)ramdisk_img );
+    printf( "kernel: %p\n", kernel_img );
+    printf( "ram disk: %p\n", ramdisk_img );
 
-    sprintf( cmd_buffer, "bootm %x %x", (unsigned int)kernel_img, (unsigned int)ramdisk_img );
+    sprintf( cmd_buffer, "bootm %lx %lx", (unsigned long)kernel_img, (unsigned long)ramdisk_img );
     run_command( cmd_buffer, flag );
 
     return 0;

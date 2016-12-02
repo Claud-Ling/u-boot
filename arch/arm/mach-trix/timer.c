@@ -38,6 +38,7 @@ int timer_init(void)
 	return 0;
 }
 
+#ifndef CONFIG_ARM64
 /*
  * timer without interrupts
  */
@@ -97,6 +98,7 @@ unsigned long long get_ticks(void)
 	return get_timer(0);
 }
 
+
 /*
  * This function is derived from PowerPC code (timebase clock frequency).
  * On ARM it returns the number of timer ticks per second.
@@ -105,6 +107,7 @@ ulong get_tbclk(void)
 {
 	return CONFIG_SYS_HZ;
 }
+#endif /*!CONFIG_ARM64*/
 
 #ifdef CONFIG_TRIX_TIMESTAMP
 /*

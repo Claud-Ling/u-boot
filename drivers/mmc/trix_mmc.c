@@ -77,7 +77,18 @@ static int sdh_pinshare_init(void)
 
 	/* Select 200M clock source */
 	MWriteRegByte(0x1500e928, 0x50, 0xf0); //SDIO1 bit[7:6]=01 SDIO0(eMMC) bit[5:4]=01
-	
+
+#elif defined (CONFIG_SIGMA_SOC_UNION)
+	/* bit[6:4] = 001 SDIO data 0 */
+	MWriteRegByte(0xf500ee27, 0x10, 0x70);
+
+	MWriteRegByte(0xf500ee29, 0x11, 0x77); /* data 1,2 */
+	MWriteRegByte(0xf500ee2a, 0x11, 0x77); /* data 3,4 */
+	MWriteRegByte(0xf500ee2b, 0x11, 0x77); /* data 5,6 */
+	MWriteRegByte(0xf500ee2c, 0x11, 0x77); /* data 7, clk */
+
+	/* bit[2:0] = 001 SDIO command*/
+	MWriteRegByte(0xf500ee2d, 0x01, 0x07);
 #else
 	#error "unknown chip!!"
 #endif

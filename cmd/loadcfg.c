@@ -2,7 +2,6 @@
 #include <command.h>
 #include <asm/io.h>
 
-#include <asm/armv7.h>
 #include <asm/arch/reg_io.h>
 #include <mmc.h>
 
@@ -130,21 +129,17 @@ static unsigned char do_set_syslog_state(int state)
 		if (s) {
 			if (*s == 'y') {
 				MWriteRegByte(0x1500ee1a, 0, 0x70);	//[6:4]=3'b000
-				CP15ISB;
 				printf("turn on syslog\n");
 			} else if (*s == 'n') {
 				printf("turn off syslog\n");
-				CP15DSB;
 				MWriteRegByte(0x1500ee1a, 0x60, 0x70);	//[6:4]=3'b110
 			}
 		}
 	} else if (1 == state) {
 		//force on
 		MWriteRegByte(0x1500ee1a, 0, 0x70);	//[6:4]=3'b000
-		CP15ISB;
 	} else if (2 == state) {
 		//force off
-		CP15DSB;
 		MWriteRegByte(0x1500ee1a, 0x60, 0x70);	//[6:4]=3'b000
 	} else {
 		//invalid param

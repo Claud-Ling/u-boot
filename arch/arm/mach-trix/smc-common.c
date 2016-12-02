@@ -203,12 +203,13 @@ int secure_read_reg(uint32_t mode, uint32_t pa, uint32_t *pval)
 			return -EACCES;
 		}
 	} else {
+		uintptr_t addr = pa;
 		if (mode == 0)
-			*pval = __raw_readb((void*)pa);
+			*pval = __raw_readb((void*)addr);
 		else if (mode == 1)
-			*pval = __raw_readw((void*)pa);
+			*pval = __raw_readw((void*)addr);
 		else if (mode == 2)
-			*pval = __raw_readl((void*)pa);
+			*pval = __raw_readl((void*)addr);
 		else
 			*pval = 0;
 	}
@@ -225,21 +226,22 @@ int secure_write_reg(uint32_t mode, uint32_t pa, uint32_t val, uint32_t mask)
 			return -EACCES;
 		}
 	} else {
+		uintptr_t addr = pa;
 		if (mode == 0) {
 			if (mask != 0xff)
 				MWriteReg(Byte, pa, val, mask);
 			else
-				__raw_writeb(val, (void*)pa);
+				__raw_writeb(val, (void*)addr);
 		} else if (mode == 1) {
 			if (mask != 0xffff)
 				MWriteReg(HWord, pa, val, mask);
 			else
-				__raw_writew(val, (void*)pa);
+				__raw_writew(val, (void*)addr);
 		} else if (mode == 2) {
 			if (mask != 0xffffffff)
 				MWriteReg(Word, pa, val, mask);
 			else
-				__raw_writel(val, (void*)pa);
+				__raw_writel(val, (void*)addr);
 		} else {
 			error("unknown access mode value (%d)\n", mode);
 		}
@@ -279,9 +281,10 @@ int secure_otp_get_fuse_array(const uint32_t offset, uint32_t *buf, uint32_t nby
 		error("error: call to %s in Secure world!\n", __func__);
 		return -EAGAIN;
 	} else {
-		uint32_t ret, addr;
+		uint32_t ret;
+		uintptr_t addr;
 		ALLOC_CACHE_ALIGN_BUFFER(void, tmp, nbytes);
-		addr = (uint32_t)tmp;
+		addr = (uintptr_t)tmp;
 		if (tmp != NULL) {
 			flush_dcache_range(addr, ALIGN(addr + nbytes, ARCH_DMA_MINALIGN));
 			ret = (uint32_t)armor_call(otp_access, OTP_ACCESS_CODE_FUSE_ARRAY,
