@@ -158,6 +158,8 @@ extern void * libfw_updater_init(const char *file);
  */
 extern void libfw_updater_deinit(void *ctx);
 
+extern int32_t libfw_updater_ctx_restore(const char *file);
+extern int32_t libfw_updater_ctx_save(const char *file);
 /*
  * descriptions:
  *    open a volume

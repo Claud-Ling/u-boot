@@ -7,6 +7,7 @@
 #include <unistd.h>
 #include <limits.h>
 #include <sys/types.h>
+#include <sys/ioctl.h>
 #include <linux/fs.h>
 #include <dirent.h>
 #include <getopt.h>
@@ -65,9 +66,9 @@
 	__h->valid;						\
 })
 
-#define EMMC_FW_INFO_BASE	0x0		/*@0M*/
+#define EMMC_FW_INFO_BASE	0x100000	/*@1M*/
 #define NAND_FW_INFO_BASE	0x1b00000	/*@27MB*/
-#define INFO_PART_SZ		0x100000	/* 1MB */
+#define INFO_PART_SZ		0x80000		/*512k*/
 #define INFO_MAX_VALID_NUM	0xff		/*255*/
 
 
@@ -90,6 +91,7 @@ struct fw_head {
 	uint32_t len;
 	uint32_t valid;
 	uint32_t n_bdy;
+	uint32_t head_crc;
 	uint32_t bdy[0];
 }__attribute__ ((packed));
 
@@ -100,6 +102,8 @@ struct fw_ctx {
 	uint32_t valid;
 	uint32_t idx;
 	void *fop;
+	struct list_head chains;
+	struct list_head msgs;
 };
 
 struct vol_head {
@@ -206,4 +210,16 @@ extern unsigned long find_first_bit(const unsigned long *addr, unsigned long siz
 extern void local_set_bit(int nr, volatile unsigned long *addr);
 extern void local_clear_bit(int nr, volatile unsigned long *addr);
 extern int local_test_bit(int nr, const volatile unsigned long *addr);
+
+#if !defined(__KERNEL__)
+extern int32_t fw_update_bootloader(struct fw_ctx *ctx, char *image);
+extern struct fw_ctx *fw_init(const char *file);
+extern struct fw_ctx *fw_ctx_init_from_file(const char *file);
+extern int32_t fw_ctx_save_to_file(struct fw_ctx *ctx, const char *file);
+
+extern int32_t fw_updater_ctx_restore(const char *file);
+extern int32_t fw_updater_ctx_save(const char *file);
+
+#endif /* !__KERNEL__ */
+
 #endif /* __SIGMA_FW_CORE_H__ */

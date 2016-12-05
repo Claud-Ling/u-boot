@@ -369,10 +369,16 @@ int32_t fop_emmc_update_bootloader(struct flash_op *op, const char *image)
 
 	} while ((rd_sz > 0) && (wr_sz > 0));
 
+	if (rd_sz<0 || wr_sz<0) {
+		goto failed1;
+	}
+
 	close(fd);
 	op->close(op);
 
 	switch_boot_part();
+
+	return 0;
 failed1:
 	close(fd);
 failed:

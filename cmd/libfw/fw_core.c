@@ -483,6 +483,8 @@ int32_t fw_fill_info(struct fw_ctx *ctx, void *info)
 	head->valid = ctx->valid;
 	head->len = (unsigned long)cur - (unsigned long)head->bdy;
 	head->crc = crc32(0, (void *)head->bdy, head->len);
+	head->head_crc = crc32(0, (void *)head,
+				(sizeof(struct fw_head)-sizeof(uint32_t)));
 
 	return 0;
 }
@@ -490,14 +492,19 @@ int32_t fw_fill_info(struct fw_ctx *ctx, void *info)
 static int32_t info_valid(void *info)
 {
 	struct fw_head *head = info;
+	uint32_t crc_check = 0;
 
-	uint32_t crc_check = crc32(0, (void *)head->bdy, head->len);
+	if (info == NULL) {
+		return 0;
+	}
+
+	crc_check = crc32(0, (void *)head->bdy, head->len);
 	fw_debug("%s: crc_check:%08x, head->crc:%08x, "
 			"head->len:%d, head->valid:%d\n",
 				__func__, crc_check, head->crc, head->len, head->valid);
 
 	if (crc_check != head->crc || head->len == 0) {
-		fw_err("%s: crc check failed\n", __func__);
+		fw_debug("%s: crc check failed\n", __func__);
 		return 0;
 	}
 
@@ -605,12 +612,51 @@ int32_t fw_ctx_to_info(struct fw_ctx *ctx, void **info)
 	return info_sz;
 }
 
-static int32_t load_info_from_flash(void *info1, void *info2)
+static int32_t load_data_from_flash(char *dev, void *buff, uint64_t at, uint64_t sz)
+{
+	int ret = -1;
+	int64_t rd_sz = 0;
+	int flash = fdetecter_main_storage_typ();
+
+	struct flash_op *op = (struct flash_op *)flash_op_open(dev, flash);
+
+	ret = flash_op_seek(op, at, SEEK_SET);
+	if (ret < 0) {
+		fw_debug("%s: seek to (%0llx) failed\n", __func__, at);
+		goto failed;
+	}
+
+	rd_sz = flash_op_read(op, buff, (uint64_t)sz);
+	if (rd_sz != sz) {
+		fw_debug("%s: load data failed\n", __func__);
+		goto failed;
+	}
+
+
+	flash_op_close(op);
+	return 0;
+failed:
+	flash_op_close(op);
+	return -ENODEV;
+}
+
+static int32_t check_fw_head_crc(struct fw_head *head)
+{
+	uint32_t crc_check = crc32(0, (void *)head, (sizeof(struct fw_head)-sizeof(uint32_t)));
+	return ((crc_check == head->head_crc) ? 0 : -1);
+}
+
+static int32_t load_info_from_flash(void **inf1, void **inf2)
 {
 	int ret = -1;
 	char *dev = NULL;
+	struct fw_head *head = NULL;
+	char buff[512];
 	uint64_t info_base = 0;
-	int64_t rd_sz = 0;
+	uint64_t len = 0;
+	void *info1 = NULL;
+	void *info2 = NULL;
+
 	int main_flash = fdetecter_main_storage_typ();
 
 	if (main_flash == FW_FTYP_EMMC) {
@@ -621,42 +667,66 @@ static int32_t load_info_from_flash(void *info1, void *info2)
 		info_base = NAND_FW_INFO_BASE;
 	}
 
-	fw_debug("%s:Got fw_info store dev:%s, info_base:%0llx\n", __func__, dev, info_base);
-	struct flash_op *op = (struct flash_op *)flash_op_open(dev, main_flash);
-
-	ret = flash_op_seek(op, info_base, SEEK_SET);
-	if (ret < 0) {
-		fw_debug("%s: flash_op_seek(%0llx) failed\n", __func__, info_base);
-		goto failed;
-	}
-
-	fw_debug("%s: flash_op_seek(%0llx) success\n", __func__, info_base);
-	rd_sz = flash_op_read(op, info1, (uint64_t)INFO_PART_SZ);
-	if (rd_sz != INFO_PART_SZ) {
-		fw_debug("%s: load info1 failed\n", __func__);
-		goto failed;
-	}
+	head = (struct fw_head *)&buff[0];
 	fw_debug("%s: load info1\n", __func__);
 
-	ret = flash_op_seek(op, (info_base+(uint64_t)INFO_PART_SZ), SEEK_SET);
-	if (ret < 0) {
-		fw_debug("%s: flash_op_seek(%0llx) failed\n", __func__, info_base);
-		goto failed;
+	/* Tentatively probe firmware info size, load 512byte(eMMC) block size*/
+	memset(&buff[0], 0, sizeof(buff));
+	ret = load_data_from_flash(dev, buff, info_base, sizeof(buff));
+	if (ret) {
+		goto load_info2;
 	}
-	fw_debug("%s: flash_op_seek(%0llx)\n", __func__, info_base+INFO_PART_SZ);
 
-	rd_sz = flash_op_read(op, info2, (uint64_t)INFO_PART_SZ);
-	if (rd_sz != INFO_PART_SZ) {
-		fw_debug("%s: load info2 failed\n", __func__);
-		goto failed;
+	if (check_fw_head_crc(head)) {
+		goto load_info2;
 	}
-	fw_debug("%s: load info2\n", __func__);
 
-	flash_op_close(op);
+	len = sizeof(struct fw_head) + head->len;
+
+	info1 = (void *)malloc(len);
+	/* Out of memory? */
+	if (info1 == NULL) {
+		goto load_info2;
+	}
+
+	memset(info1, 0, len);
+	ret = load_data_from_flash(dev, info1, info_base, len);
+	if (ret) {
+		free(info1);
+		info1 = NULL;
+	}
+
+load_info2:
+	memset(&buff[0], 0, sizeof(buff));
+	ret = load_data_from_flash(dev, buff,
+				(info_base+(uint64_t)INFO_PART_SZ), sizeof(buff));
+
+	if (ret) {
+		goto out;
+	}
+
+	if (check_fw_head_crc(head)) {
+		goto out;
+	}
+
+	len = sizeof(struct fw_head) + head->len;
+
+	info2 = (void *)malloc(len);
+	/* Out of memory? */
+	if (info2 == NULL) {
+		goto out;
+	}
+
+	memset(info2, 0, len);
+	ret = load_data_from_flash(dev, info2, (info_base+(uint64_t)INFO_PART_SZ), len);
+	if (ret) {
+		free(info2);
+		info2 = NULL;
+	}
+out:
+	*inf1 = info1;
+	*inf2 = info2;
 	return 0;
-failed:
-
-	return -ENODEV;
 
 }
 
@@ -717,15 +787,11 @@ struct fw_ctx *fw_ctx_init_from_flash(void)
 {
 	int ret = -1;
 	uint32_t info_idx = 0;
-	void *info1 = (void *)malloc((uint32_t)INFO_PART_SZ);
-	void *info2 = (void *)malloc((uint32_t)INFO_PART_SZ);
+	void *info1 = NULL;
+	void *info2 = NULL;
 	struct fw_ctx *ctx = NULL;
 
-
-	memset(info1, 0, INFO_PART_SZ);
-	memset(info2, 0, INFO_PART_SZ);
-
-	ret = load_info_from_flash(info1, info2);
+	ret = load_info_from_flash(&info1, &info2);
 	if (ret)
 		goto failed;
 
@@ -739,28 +805,40 @@ struct fw_ctx *fw_ctx_init_from_flash(void)
 
 	ctx = fw_parse_info(info);
 	ctx->idx = info_idx;
-	free(info1);
-	free(info2);
+
+	if (info1)
+		free(info1);
+	if (info2)
+		free(info2);
 	info1 = NULL;
 	info2 = NULL;
 	return ctx;
 failed:
 
 	fw_debug("%s: Can't find any valid 'firmware info' on main flash\n",__func__);
-	free(info1);
-	free(info2);
+	if (info1)
+		free(info1);
+	if (info2)
+		free(info2);
 	info1 = NULL;
 	info2 = NULL;
 	return NULL;
 }
 
 static struct fw_ctx *g_bd_ctx = NULL;
+static struct fw_ctx *g_updater_ctx = NULL;
 
 struct fw_ctx *fw_get_board_ctx(void)
 {
 	if (g_bd_ctx == NULL) {
 		g_bd_ctx = fw_ctx_init_from_flash();
 	}
+
+	/*
+	 * For updater specify a file save firmware info not flush to flash
+	 */
+	if (g_updater_ctx)
+		return g_updater_ctx;
 
 	return g_bd_ctx;
 }
@@ -830,12 +908,21 @@ struct fw_ctx *fw_ctx_init_from_file(const char *file)
 		return NULL;
 	}
 
+	if (info_st.st_size == 0) {
+		return NULL;
+	}
+
 	info = (void *)malloc(info_st.st_size);
+	fw_debug("%s: got info buff@%p size:%d\n", __func__, info, info_st.st_size);
 	if (!info) {
 		return NULL;
 	}
 
 	int fd = open(file, O_CREAT | O_RDWR, 0666);
+	if (fd < 0) {
+		goto fail;
+	}
+
 	ret = read(fd, info, info_st.st_size);
 	if (ret != info_st.st_size) {
 		goto fail1;
@@ -1137,6 +1224,41 @@ err1:
 	fw_ctx_free(ctx);
 	return NULL;
 }
+
+int32_t fw_updater_ctx_restore(const char *file)
+{
+	struct fw_ctx *ctx = fw_ctx_init_from_file(file);
+
+	/* Updater first initial case, not context file exist
+	 * So, we need copy context from board(flash).
+	 */
+	if (!ctx) {
+		ctx = fw_get_board_ctx();
+	}
+
+	g_updater_ctx = ctx;
+
+	/* Update valid count*/
+	if (g_updater_ctx != g_bd_ctx) {
+		g_updater_ctx->valid = g_bd_ctx->valid;
+	}
+
+	return 0;
+}
+
+int32_t fw_updater_ctx_save(const char *file)
+{
+	int32_t ret = -1;
+	if (!g_updater_ctx)
+		return 0;
+	ret = fw_ctx_save_to_file(g_updater_ctx, file);
+	if (g_updater_ctx != g_bd_ctx) {
+		fw_ctx_free(g_updater_ctx);
+	}
+	g_updater_ctx = NULL;
+
+	return ret;
+}
 #endif
 
 void fw_deinit(struct fw_ctx *ctx)
@@ -1157,11 +1279,11 @@ void fw_dump(struct fw_ctx *ctx)
 		fw_msg("vol->name:\t%s\n", vol->info->name);
 		fw_msg("vol->fs:\t%s\n", vol->info->fs);
 		fw_msg("vol->index:\t%d\n", vol->info->index);
-		fw_msg("vol->dep_vol:\t%llx\n", vol->info->dep_vol);
+		fw_msg("vol->dep_vol:\t%llx\n", (long long unsigned int)vol->info->dep_vol);
 		fw_msg("vol->ablities:\t%08x\n", vol->info->ablities);
 		fw_msg("vol->active_ablities:\t%08x\n", vol->info->active_ablities);
-		fw_msg("vol->start:\t%llx\n", vol->info->start);
-		fw_msg("vol->sz_perpart:\t%llx\n", vol->info->sz_perpart);
+		fw_msg("vol->start:\t%llx\n", (long long unsigned int)vol->info->start);
+		fw_msg("vol->sz_perpart:\t%llx\n", (long long unsigned int)vol->info->sz_perpart);
 		fw_msg("vol->nr_parts:\t%08x\n", vol->info->nr_parts);
 		fw_msg("vol->active_part:\t%d\n", vol->info->active_part);
 
@@ -1170,9 +1292,9 @@ void fw_dump(struct fw_ctx *ctx)
 			fw_msg("\tpart->name:\t%s\n", part->info->name);
 			fw_msg("\tpart->index:\t%d\n", part->info->index);
 			fw_msg("\tpart->need_sig:\t%d\n", part->info->need_sig);
-			fw_msg("\tpart->start:\t%llx\n", part->info->start);
-			fw_msg("\tpart->size:\t%llx\n", part->info->size);
-			fw_msg("\tpart->valid_sz:\t%llx\n", part->info->valid_sz);
+			fw_msg("\tpart->start:\t%llx\n", (long long unsigned int)part->info->start);
+			fw_msg("\tpart->size:\t%llx\n", (long long unsigned int)part->info->size);
+			fw_msg("\tpart->valid_sz:\t%llx\n", (long long unsigned int)part->info->valid_sz);
 			fw_msg("\n");
 		}
 		fw_msg("\n");

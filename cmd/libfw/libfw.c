@@ -179,7 +179,7 @@ void libfw_updater_close_volume(void *ctx)
 #if !defined(__KERNEL__)
 int32_t libfw_updater_update_bootloader(void *ctx, const char *image)
 {
-	return fw_update_bootloader((struct fw_ctx *)ctx, image);
+	return fw_update_bootloader((struct fw_ctx *)ctx, (char *)image);
 }
 
 void * libfw_updater_init(const char *file)
@@ -190,6 +190,16 @@ void * libfw_updater_init(const char *file)
 void libfw_updater_deinit(void *ctx)
 {
 	fw_deinit((struct fw_ctx *)ctx);
+}
+
+int32_t libfw_updater_ctx_restore(const char *file)
+{
+	return fw_updater_ctx_restore(file);
+}
+
+int32_t libfw_updater_ctx_save(const char *file)
+{
+	return fw_updater_ctx_save(file);
 }
 #endif
 
