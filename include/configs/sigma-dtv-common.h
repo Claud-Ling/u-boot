@@ -146,7 +146,9 @@
 #   define CONFIG_MMC
 #   define CONFIG_GENERIC_MMC
 #   define CONFIG_SDHCI
+#ifndef CONFIG_SIGMA_SOC_SX8
 #   define CONFIG_MMC_SDMA
+#endif
 /* #   define CONFIG_MMC_TRACE */
 /* #   define CONFIG_MMC_SDHCI_IO_ACCESSORS */
 #endif

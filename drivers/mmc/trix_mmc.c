@@ -115,6 +115,7 @@ int monza_sdhi_init(u32 regbase,  u32 quirks)
 	host->name   = SDHI_NAME;
 	host->ioaddr = (void *)regbase;
 	host->quirks = quirks;
+	host->quirks |= SDHCI_QUIRK_WAIT_SEND_CMD;
 
 	/* Host support high capacity */
 //	host->host_caps = MMC_MODE_HC;
