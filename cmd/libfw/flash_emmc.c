@@ -283,20 +283,40 @@ int64_t fop_emmc_read(struct flash_op *op, void *buff, uint64_t sz)
 	return read(op->fd, buff, sz);
 #elif defined(__UBOOT__)
 	/* u-boot case */
+	char *remainder_buff[512] =  { 0 };
+	void *pos = NULL;
 	struct mmc *mmc = op->mmc;
 	u32 blk = (op->cur / 512);
+	u32 remainder_sz = sz % 512;
 	u32 cnt = (sz / 512);
 	u32 n = 0;
 
 	fw_debug("%s: op->cur:%lld, cnt:%lld\n", __func__, op->cur, sz/512);
 	n = mmc->block_dev.block_read(&mmc->block_dev, blk, cnt, buff);
+	if (n != cnt)
+		goto error;
+
 	flush_cache((ulong)buff, cnt * 512);
 
-	op->cur += n*512;
+	if (remainder_sz) {
+		pos = (void *)((unsigned long)buff + cnt * 512);
+		n = mmc->block_dev.block_read(&mmc->block_dev, blk+cnt, 1, (void *)remainder_buff);
+		cnt +=1;
+		if (n != 1) {
+			goto error;
+		}
+		flush_cache((ulong)remainder_buff, n * 512);
+		memcpy(pos, (void *)remainder_buff, remainder_sz);
+	}
 
-	fw_debug("%s: %d blocks read: %s\n", __func__, n, (n == cnt) ? "OK" : "ERROR");
+	op->cur += cnt*512;
+
+	fw_debug("%s: %d blocks read: OK\n", __func__, cnt);
 	return sz;
 
+error:
+	printf("%s: %d blocks read: ERROR\n", __func__, cnt);
+	return -1;
 #else
 	/*Pure kernel case */
 #endif
@@ -312,6 +332,7 @@ int64_t fop_emmc_write(struct flash_op *op, void *buff, uint64_t sz)
 	struct mmc *mmc = op->mmc;
 	u32 blk = (op->cur / 512);
 	u32 cnt = (sz / 512);
+	//TODO: Write size not 512byte align, any good idea?
 	if (sz & (512-1)) {
 		cnt += 1;
 	}
@@ -364,13 +385,15 @@ int32_t fop_emmc_update_bootloader(struct flash_op *op, const char *image)
 
 	do {
 		rd_sz = read(fd, buff, len);
+		if (rd_sz < 0)
+			break;
 
 		wr_sz = op->write(op, buff, rd_sz);
 
 	} while ((rd_sz > 0) && (wr_sz > 0));
 
 	if (rd_sz<0 || wr_sz<0) {
-		goto failed1;
+		goto failed2;
 	}
 
 	close(fd);
@@ -379,6 +402,9 @@ int32_t fop_emmc_update_bootloader(struct flash_op *op, const char *image)
 	switch_boot_part();
 
 	return 0;
+
+failed2:
+	op->close(op);
 failed1:
 	close(fd);
 failed:

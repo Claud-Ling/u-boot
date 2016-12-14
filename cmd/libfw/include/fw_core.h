@@ -95,6 +95,19 @@ struct fw_head {
 	uint32_t bdy[0];
 }__attribute__ ((packed));
 
+struct ext_hdr {
+	uint32_t magic;
+	uint32_t len;
+	uint32_t data[0];
+}__attribute__ ((packed));
+
+struct extension {
+	uint32_t magic;
+	void *ext_ctx;
+	void *info_data;
+	uint32_t info_sz;
+};
+
 struct fw_ctx {
 	struct list_head vols;
 	uint32_t max_vol_idx;
@@ -102,8 +115,16 @@ struct fw_ctx {
 	uint32_t valid;
 	uint32_t idx;
 	void *fop;
-	struct list_head chains;
-	struct list_head msgs;
+	int nr_exts;
+	struct extension *exts;
+};
+
+struct extension_op {
+	uint32_t magic;
+	void (*parse)(struct fw_ctx *, void *);
+	int32_t (*fill)(struct fw_ctx *, void **);
+	void (*release)(struct fw_ctx *, struct extension *);
+	void (*dump)(struct fw_ctx *);
 };
 
 struct vol_head {
@@ -221,5 +242,9 @@ extern int32_t fw_updater_ctx_restore(const char *file);
 extern int32_t fw_updater_ctx_save(const char *file);
 
 #endif /* !__KERNEL__ */
+
+extern struct extension *fw_register_extension(struct fw_ctx *ctx, uint32_t magic);
+extern int32_t fw_msg_set(struct fw_ctx *ctx, const char *name, const char *value);
+extern char * fw_msg_get(struct fw_ctx *ctx, const char *name);
 
 #endif /* __SIGMA_FW_CORE_H__ */

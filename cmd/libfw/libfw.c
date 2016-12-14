@@ -152,6 +152,26 @@ void libfw_board_dump(void)
 	fw_dump(bd_ctx);
 	return;
 }
+
+int32_t libfw_board_leave_message(char *name, char *message)
+{
+	int ret = -1;
+	struct fw_ctx *bd_ctx = (struct fw_ctx *)fw_get_board_ctx();
+	ret = fw_msg_set(bd_ctx, name, message);
+	if (ret)
+		goto out;
+
+	ret = fw_ctx_save_to_flash(bd_ctx);
+out:
+	return ret;
+}
+
+char * libfw_board_get_message(char *name)
+{
+	struct fw_ctx *bd_ctx = (struct fw_ctx *)fw_get_board_ctx();
+	return fw_msg_get(bd_ctx, name);
+}
+
 /*
  * 'Updater' related API
  */

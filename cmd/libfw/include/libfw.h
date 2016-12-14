@@ -123,7 +123,33 @@ extern char *libfw_board_get_part_list(void);
  */
 extern void libfw_board_dump(void);
 
+/*
+ * descriptions:
+ *    Store a message in firmware info
+ *
+ * parameters:
+ *    name [in]: message name
+ *    message [in]: message content point
+ *		message can be 'NULL', this can remove message from firmware info
+ *
+ * return:
+ *    Success: 0
+ *    Failed: Negative value
+ */
+extern int32_t libfw_board_leave_message(char *name, char *message);
 
+/*
+ * descriptions:
+ *    Fetch a message from firmware info
+ *
+ * parameters:
+ *    name [in]: message name
+ *
+ * return:
+ *    Success: valid point
+ *    Failed: NULL
+ */
+extern char * libfw_board_get_message(char *name);
 
 
 

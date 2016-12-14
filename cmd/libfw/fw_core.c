@@ -1,6 +1,8 @@
 //#define DEBUG
 #include <fw_core.h>
 
+extern struct extension_op *find_ext_op(uint32_t magic);
+
 static inline char * num_to_gmk(unsigned int num, char *gmkStr, int base)
 {
 	char magnitude[2] = {'\0', '\0'};
@@ -114,10 +116,21 @@ void fw_vol_free_parts(struct fw_vol *vol)
 
 void fw_ctx_free(struct fw_ctx *ctx)
 {
+	int i;
 	struct fw_vol *vol = NULL;
+	struct extension_op *exop = NULL;
 	if (ctx == NULL)
 		return;
 
+	/* Release extensions */
+	for(i=0; i<ctx->nr_exts; i++) {
+		exop = find_ext_op(ctx->exts[i].magic);
+		exop->release(ctx, &ctx->exts[i]);
+	}
+
+	free(ctx->exts);
+	ctx->exts = NULL;
+	ctx->nr_exts = 0;
 
 	while(!list_empty(&ctx->vols)) {
 
@@ -414,48 +427,34 @@ fail:
 	return NULL;
 }
 
-uint32_t fw_calc_info_sz(struct fw_ctx *ctx)
+uint32_t fw_vol_info_fill(struct fw_ctx *ctx, void **inf)
 {
 	uint32_t total_sz = 0, vol_sz = 0;
-	struct list_head *pos = NULL;
+	struct list_head *vol_pos = NULL, *part_pos = NULL;
 	struct fw_vol *vol = NULL;
+	void *info = NULL, *cur = NULL;
+	struct vol_head *vol_head = NULL;
+	struct fw_part *part = NULL;
 
-	list_for_each(pos, &ctx->vols) {
+	list_for_each(vol_pos, &ctx->vols) {
 		vol_sz = 0;
-		vol = list_entry(pos, struct fw_vol, list);
+		vol = list_entry(vol_pos, struct fw_vol, list);
 		fw_debug("%s: vol = %p, vol->info = %p\n", __func__, vol, vol->info);
 		fw_debug("%s: Calc vol(%s) size.\n", __func__, vol->info->name);
 		vol_sz += sizeof(struct vol_info);
 		vol_sz += (sizeof(struct part_info) * vol->info->nr_parts);
 		fw_debug("%s:\tvol size: %08x\n", __func__, vol_sz);
-		fw_debug("%s:\tpos: %p, ctx->vols: %p\n", __func__, pos, &ctx->vols);
+		fw_debug("%s:\tpos: %p, ctx->vols: %p\n", __func__, vol_pos, &ctx->vols);
 		total_sz += vol_sz;
 	}
 
-	total_sz += sizeof(struct fw_head);
-
-	/* One body offset space */
-	total_sz += 1*sizeof(uint32_t);
-
 	total_sz += sizeof(struct vol_head);
 
-	return total_sz;
-}
 
-int32_t fw_fill_info(struct fw_ctx *ctx, void *info)
-{
-	struct list_head *vol_pos = NULL, *part_pos = NULL;
-	struct fw_vol *vol = NULL;
-	struct fw_part *part = NULL;
-	uint32_t *bdy_offs = NULL;
-	void *cur = info;
-	struct fw_head *head = info;
+	info = (void *)malloc(total_sz);
+	memset(info, 0, total_sz);
 
-	bdy_offs = (uint32_t *)((unsigned long)info + sizeof(struct fw_head));
-
-	struct vol_head *vol_head  = (struct vol_head *)
-		((unsigned long)cur + sizeof(struct fw_head) + 1*sizeof(uint32_t));
-
+	vol_head  = (struct vol_head *)info;
 	cur = (void *)((unsigned long)vol_head + sizeof(struct vol_head));
 
 	list_for_each(vol_pos, &ctx->vols) {
@@ -476,17 +475,99 @@ int32_t fw_fill_info(struct fw_ctx *ctx, void *info)
 	}
 	vol_head->magic = VOL_HEAD_VER(1, 0);
 
-	*bdy_offs = ((unsigned long)vol_head - (unsigned long)info);
+	*inf = info;
+
+	return total_sz;
+}
+
+int32_t fw_fill_info(struct fw_ctx *ctx, void **inf)
+{
+	int i;
+	uint32_t vol_info_sz = 0, total_sz = 0, bdy_entry_sz = 0;
+	uint32_t frst_bdy_off, n_bdy_off;
+	void *vol_info = NULL, *pos = NULL;
+	struct extension_op *exop = NULL;
+	struct fw_head *head = NULL;
+	void *info = NULL;
+
+
+	vol_info_sz = fw_vol_info_fill(ctx, &vol_info);
+	total_sz += vol_info_sz;
+
+	if (vol_info == NULL) {
+		goto fail;
+	}
+
+
+	for (i=0; i<ctx->nr_exts; i++) {
+		exop = find_ext_op(ctx->exts[i].magic);
+		ctx->exts[i].info_sz = exop->fill(ctx, &ctx->exts[i].info_data);
+		total_sz += ctx->exts[i].info_sz;
+		if (ctx->exts[i].info_data == NULL)
+			goto fail1;
+	}
+
+	total_sz += sizeof(struct fw_head);
+	bdy_entry_sz = (sizeof(uint32_t) * (ctx->nr_exts + 1));
+	total_sz += bdy_entry_sz;
+
+	info = (void *)malloc(total_sz);
+	if (info == NULL) {
+		goto fail1;
+	}
+	memset(info, 0, total_sz);
+
+	head = (struct fw_head *)info;
+
+	pos = (void *)((unsigned long)info + sizeof(struct fw_head)+ bdy_entry_sz);
+
+	/* First body is volume info */
+	frst_bdy_off = (uint32_t)((unsigned long)pos - (unsigned long)info);
+	head->bdy[0] = frst_bdy_off;
+
+	/* Store volume info to firmware info */
+	memcpy(pos, vol_info, vol_info_sz);
+	free(vol_info);
+	vol_info = NULL;
+	pos = (void *)((unsigned long)pos + vol_info_sz);
+
+
+	/* Due extension, if we have */
+	for (i=0; i<ctx->nr_exts; i++) {
+		n_bdy_off = (uint32_t)((unsigned long)pos - (unsigned long)info);
+		head->bdy[i+1] = n_bdy_off;
+
+		memcpy(pos, ctx->exts[i].info_data, ctx->exts[i].info_sz);
+		pos = (void *)((unsigned long)pos + ctx->exts[i].info_sz);
+		free(ctx->exts[i].info_data);
+		ctx->exts[i].info_data = NULL;
+		ctx->exts[i].info_sz = 0;
+	}
+
 
 	head->magic = FW_INFO_VER(1, 0);
-	head->n_bdy = 1;
+	head->n_bdy = 1 + ctx->nr_exts;
 	head->valid = ctx->valid;
-	head->len = (unsigned long)cur - (unsigned long)head->bdy;
+	head->len = (unsigned long)pos - (unsigned long)head->bdy;
 	head->crc = crc32(0, (void *)head->bdy, head->len);
 	head->head_crc = crc32(0, (void *)head,
 				(sizeof(struct fw_head)-sizeof(uint32_t)));
 
-	return 0;
+	*inf = info;
+	return total_sz;
+
+fail1:
+	for (i=0; i<ctx->nr_exts; i++) {
+		if (ctx->exts[i].info_data != NULL) {
+			free(ctx->exts[i].info_data);
+			ctx->exts[i].info_data = NULL;
+			ctx->exts[i].info_sz = 0;
+		}
+	}
+
+	free(vol_info);
+fail:
+	return -ENOMEM;
 }
 
 static int32_t info_valid(void *info)
@@ -551,15 +632,26 @@ struct fw_ctx * fw_parse_info(void *info)
 	struct list_head *pos = NULL;
 	struct fw_part *part = NULL;
 	void *cur = NULL;
-	uint32_t i = 0;
+	uint32_t i = 0, sz = 0;
+	void *data = NULL;
+	uint32_t magic = 0;
+	unsigned long  end_of_info = 0;
+	struct extension_op *exop = NULL;
+	struct vol_head *vol_head = NULL;
 	struct fw_head *head = info;
-	struct vol_head *vol_head =
-		(struct vol_head *)((*(uint32_t *)&head->bdy[0]) + (unsigned long)info);
+
+
+	/* Volume info always located at fist body */
+	vol_head = (struct vol_head *)((*(uint32_t *)&head->bdy[0]) + (unsigned long)info);
+
+	end_of_info = (unsigned long)head->len + (unsigned long)&head->bdy[0];
 
 	if (!info_valid(info))
 		return NULL;
 
 	struct fw_ctx *ctx = fw_ctx_alloc();
+
+	/* Let context recoder valid number */
 	ctx->valid = head->valid;
 
 	cur =(void *)((unsigned long)vol_head + sizeof(struct vol_head));
@@ -590,25 +682,86 @@ struct fw_ctx * fw_parse_info(void *info)
 
 		/* Add vol to ctx for restore */
 		fw_add_volume(ctx, vol);
+
+		/* We got wrong firmware info, but with valid CRC ?*/
+		if ((unsigned long)cur > end_of_info) {
+			return NULL;
+		}
 	}
 
+	/* Check have extentions */
+	ctx->nr_exts = head->n_bdy - 1;
+	if (ctx->nr_exts == 0 || ctx->nr_exts < 0) {
+		ctx->nr_exts = 0;
+		ctx->exts = NULL;
+		goto skip_extension;
+	}
+
+	/* Allocate extension context */
+	sz = (sizeof(struct extension)*ctx->nr_exts);
+	ctx->exts = (struct extension *)malloc(sz);
+	if (ctx->exts == NULL) {
+		return NULL;
+	}
+
+	memset((void*)ctx->exts, 0, sz);
+
+	for(i=0; i<ctx->nr_exts; i++) {
+		data = (void *)(head->bdy[i+1] + (unsigned long)info);
+		magic = *(uint32_t *)data;
+		/* Get a context slot, make its magic num equ exts' magic */
+		ctx->exts[i].magic = magic;
+
+		exop = find_ext_op(magic);
+		if (exop == NULL) {
+		/* Can't handle such extensions, skip */
+			continue;
+		}
+
+		/* Let extension construct its context */
+		exop->parse(ctx, data);
+	}
+
+skip_extension:
 
 	return ctx;
 
 }
 
+struct extension *fw_register_extension(struct fw_ctx *ctx, uint32_t magic)
+{
+	struct extension *ext = NULL;
+	void *dest = NULL;
+	uint32_t sz = 0;
+	uint32_t nr_exts = (ctx->nr_exts + 1);
+
+
+	sz = (sizeof(struct extension)*nr_exts);
+	dest = (void *)malloc(sz);
+	/* Out of memory ? */
+	if (dest == NULL) {
+		return NULL;
+	}
+	memset(dest, 0, sz);
+
+	memcpy(dest, (void *)ctx->exts, (sizeof(struct extension) * ctx->nr_exts));
+
+	free(ctx->exts);
+	ctx->exts = dest;
+	ctx->nr_exts = nr_exts;
+
+	ext = &ctx->exts[nr_exts - 1];
+	ext->magic = magic;
+
+	return ext;
+
+}
+
 int32_t fw_ctx_to_info(struct fw_ctx *ctx, void **info)
 {
-	uint32_t info_sz = fw_calc_info_sz(ctx);
+	int32_t info_sz = fw_fill_info(ctx, info);
+
 	fw_debug("%s: Got info_sz = %08x\n", __func__, info_sz);
-
-	*info = (void *)malloc(info_sz);
-	fw_debug("%s: Allocate info buff @%08x\n", __func__, *info);
-
-	memset(*info, 0, info_sz);
-
-	fw_fill_info(ctx, *info);
-
 	return info_sz;
 }
 
@@ -804,6 +957,9 @@ struct fw_ctx *fw_ctx_init_from_flash(void)
 	fw_debug("%s:Active info idx:%d name:info%d\n", __func__, info_idx, (info_idx+1));
 
 	ctx = fw_parse_info(info);
+	if (ctx == NULL) {
+		goto failed;
+	}
 	ctx->idx = info_idx;
 
 	if (info1)
@@ -836,7 +992,7 @@ struct fw_ctx *fw_get_board_ctx(void)
 
 	/*
 	 * For updater specify a file save firmware info not flush to flash
-	 */
+	 */ 
 	if (g_updater_ctx)
 		return g_updater_ctx;
 
@@ -929,6 +1085,10 @@ struct fw_ctx *fw_ctx_init_from_file(const char *file)
 	}
 
 	ctx = fw_parse_info(info);
+	if (ctx == NULL) {
+		goto fail1;
+	}
+
 	free(info);
 	info = NULL;
 	close(fd);
@@ -954,6 +1114,7 @@ int32_t fw_ctx_save_to_file(struct fw_ctx *ctx, const char *file)
 	lseek(fd, 0 , SEEK_SET);
 	write(fd, info, sz);
 	close(fd);
+	free(info);
 
 	return 0;
 }
@@ -1231,7 +1392,7 @@ int32_t fw_updater_ctx_restore(const char *file)
 
 	/* Updater first initial case, not context file exist
 	 * So, we need copy context from board(flash).
-	 */
+ 	*/
 	if (!ctx) {
 		ctx = fw_get_board_ctx();
 	}
@@ -1270,9 +1431,11 @@ void fw_deinit(struct fw_ctx *ctx)
 
 void fw_dump(struct fw_ctx *ctx)
 {
+	int i;
 	struct list_head *vol_pos = NULL, *part_pos = NULL;
 	struct fw_vol *vol = NULL;
 	struct fw_part *part = NULL;
+	struct extension_op *exop = NULL;
 
 	list_for_each(vol_pos, &ctx->vols) {
 		vol = list_entry(vol_pos, struct fw_vol, list);
@@ -1300,6 +1463,11 @@ void fw_dump(struct fw_ctx *ctx)
 		fw_msg("\n");
 	}
 
+	/* Dump extensions */
+	for(i=0; i<ctx->nr_exts; i++) {
+		exop = find_ext_op(ctx->exts[i].magic);
+		exop->dump(ctx);
+	}
 	return;
 }
 

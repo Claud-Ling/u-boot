@@ -230,6 +230,52 @@ static int do_fw(cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])
 		volume_switch_part(vol);
 		fw_ctx_save_to_flash(g_ctx);
 		return 0;
+	} else if (strcmp(argv[1], "leave_message") == 0) {
+		char *message_name = argv[2];
+		char *message = argv[3];
+		int ret = 0;
+
+		if (!message_name) {
+			printf("message name must be specified!\n");
+			return CMD_RET_USAGE;
+		}
+
+		fw_init();
+		if(g_ctx == NULL) {
+			printf("No vaild firmware info on board!\n");
+			return 0;
+		}
+
+		ret = libfw_board_leave_message(message_name, message);
+		if (ret) {
+			printf("Leave message failed!\n");
+			return -1;
+		}
+
+		return 0;
+
+	} else if (strcmp(argv[1], "get_message") == 0) {
+		char *message_name = argv[2];
+		char *message = NULL;
+
+		if (!message_name) {
+			printf("message name must be specified!\n");
+			return CMD_RET_USAGE;
+		}
+
+		fw_init();
+		if(g_ctx == NULL) {
+			printf("No vaild firmware info on board!\n");
+			return 0;
+		}
+
+		message = libfw_board_get_message(message_name);
+		if (!message) {
+			printf("Get message failed!\n");
+			return -1;
+		}
+		printf("message:%s\n", message);
+		return 0;
 	}
 
 
@@ -253,7 +299,13 @@ U_BOOT_CMD(
 	"    -Set which volume will be booted with 'fw boot' command\n"
 	"         'volume name' specify volume want to set as primary boot volume\n\n"
 	"get_boot_volume\n"
-	"    -Output primary boot volume name\n"
+	"    -Output primary boot volume name\n\n"
 	"swtich_part <volume name>\n"
-	"    -Switch specified volume active partition\n"
+	"    -Switch specified volume active partition\n\n"
+	"leave_message <message_name> [message]\n"
+	"    -Store a message into firmware info\n"
+	"    -[message] is optional, if NULL means delete the message\n"
+	"    -specified by <message_name>\n\n"
+	"get_message <message_name>\n"
+	"    -Get a message from firmware info\n\n"
 );
