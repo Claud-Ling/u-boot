@@ -57,6 +57,7 @@ struct mips_img_hdr
 #       define PT_EXTRA_CFG  (5<<1)
 #       define PT_EXTRA_ST   (6<<1)
 #       define PT_EXTRA_LOGO (7<<1)
+#       define PT_EXTRA_AUDIO (8<<1)
 #       define PT_AV    (PT_DATA | PT_EXTRA_AV)
 #       define PT_DISP  (PT_DATA | PT_EXTRA_DISP)
 #       define PT_DB    (PT_DATA | PT_EXTRA_DB)
@@ -64,6 +65,7 @@ struct mips_img_hdr
 #       define PT_CFG   (PT_DATA | PT_EXTRA_CFG)
 #       define PT_ST    (PT_DATA | PT_EXTRA_ST)
 #       define PT_LOGO  (PT_DATA | PT_EXTRA_LOGO)
+#       define PT_AUDIO (PT_DATA | PT_EXTRA_AUDIO)
 #       define PT_MSZ_SHIFT 8       //bit[19..8]
 #       define PT_MSZ_MASK  (((1 << (MAX_NR_UMACS * 4)) - 1) << PT_MSZ_SHIFT)
 #       define PT_GET_TYPE(t)  ((t) & PT_TYPE_MASK)

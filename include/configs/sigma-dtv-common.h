@@ -306,6 +306,7 @@
 #if defined(CONFIG_TRIX_MMC)
 #   define CONFIG_CMD_MMC
 #   define CONFIG_CMD_FIRMWARE_INFO /*Firmware info*/
+#   define CONFIG_CMD_EXT4
 #endif
 
 /*filesystem*/
@@ -349,6 +350,7 @@
 #   define CONFIG_CMD_BOOTMIPS
 #   define CONFIG_CMD_LOADSETTINGS
 #   define CONFIG_PMAN_ENTRY_SUPPORT
+#   define CONFIG_CMD_MD5SUM
 #endif
 
 /* secure monitor dependent */

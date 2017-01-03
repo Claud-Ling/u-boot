@@ -4,6 +4,11 @@
 #include <asm/arch/reg_io.h>
 #include <malloc.h>
 #include <mipsimg.h>
+#ifdef CONFIG_CMD_EXT4
+#include <fs.h>
+#include <image.h>
+#include <u-boot/md5.h>
+#endif
 
 //RGU for sx6/sx7/..., refer to RGU SPG
 #define TRIX_RGU_CTRLREG		0x1500ee80
@@ -60,6 +65,7 @@ typedef enum _tagSdImgPayload{
 	IMG_CFG,	/* setting_cfg img */
 	IMG_ST,		/* initsetting img */
 	IMG_LOGO,	/* logo img */
+	IMG_AUDIO, /* audio img */
 
 	IMG_INVAL = -1,
 }SdImgPayload_t;
@@ -98,6 +104,7 @@ static SdImgDesc_t imgdescs[] =
 	{IMG_CFG,	"setting_cfg.xml"},
 	{IMG_ST,	"initsetting.file"},
 	{IMG_LOGO,	"logo.bin"},
+	{IMG_AUDIO,  "audio_boot.bin"},
 	{IMG_INVAL,	NULL},
 };
 
@@ -111,6 +118,14 @@ static SdImgDesc_t imgdescs[] =
 		}					\
 	_ret;						\
 })
+
+#ifdef CONFIG_CMD_EXT4
+#define MD5SUM_LEN 32
+typedef struct _tagMetaData{
+	char version[16];
+	char md5sum[MD5SUM_LEN];
+}MetaData_t;
+#endif
 
 static unsigned int GetLoadAddr(const void* buf, const int len)
 {
@@ -731,6 +746,100 @@ static int mdbg_cleanup(void)
 
 #endif /*CONFIG_DEBUG_MIPS*/
 
+#ifdef CONFIG_CMD_EXT4
+static int load_from_ext4(SdImgPayload_t id)
+{
+	if(id == IMG_DB || id == IMG_LOGO || id == IMG_AUDIO)
+		return 1;
+	return 0;
+}
+
+static int ext4_load_file(const char* file_name, void *addr)
+{
+	const char *ifname = "mmc";
+	const char *dev_part = "0";
+	int fstype = FS_TYPE_EXT;
+	loff_t len_read;
+
+	if(!file_name || !addr)
+		return -1;
+
+	if(fs_set_blk_dev(ifname, dev_part, fstype))
+		return -1;
+
+	if(fs_read(file_name, (unsigned long)addr, 0, 0, &len_read) < 0)
+		return -1;
+
+	return len_read;
+}
+
+static int ext4_get_md5sum(const char* file_name, char* md5sum)
+{
+	char *addr;
+	const char *md5sum_dir = ".meta/";
+	char md5sum_file[64];
+
+	if(!file_name || !md5sum)
+		return -1;
+
+	addr = (char *)malloc(128);
+	if(!addr)
+	{
+		pr_err("malloc for md5sum file failed\n");
+		return -1;
+	}
+	snprintf(md5sum_file, sizeof(md5sum_file), "%s%s.meta", md5sum_dir, file_name);
+	if(ext4_load_file(md5sum_file, (void *)addr) < 0)
+	{
+		pr_warn("can't get %s\n", md5sum_file);
+		free(addr);
+		return -1;
+	}
+	memcpy(md5sum, addr, MD5SUM_LEN);
+
+	free(addr);
+	return 0;
+}
+
+static int ext4_calc_md5sum(void* addr, unsigned int len, char* md5sum)
+{
+	unsigned char output[16];
+	unsigned int i;
+	char *p;
+
+	if(!addr || len == 0 || !md5sum)
+		return -1;
+
+	md5_wd((unsigned char *)addr, len, output, CHUNKSZ_MD5);
+
+	p = md5sum;
+	for (i = 0; i < 16; i++) {
+		sprintf(p, "%02x", output[i]);
+		p += 2;
+	}
+
+	return 0;
+}
+
+static int ext4_check_file(const char* file_name, void* addr, unsigned int len)
+{
+	MetaData_t meta1, meta2;
+
+	if(!file_name || !addr || len == 0)
+		return -1;
+	if(ext4_calc_md5sum(addr, len, meta1.md5sum) != 0)
+		return -1;
+	if(ext4_get_md5sum(file_name, meta2.md5sum) != 0)
+		return -1;
+	if(memcmp(meta1.md5sum, meta2.md5sum, MD5SUM_LEN) != 0)
+	{
+		pr_warn("checksum did not match\n");
+		return -1;
+	}
+
+	return 0;
+}
+#endif
 
 static int do_load_memfile(void* img, u32 len, void* mimg_ddr, u32 mlen, int target_ending)
 {
@@ -1087,6 +1196,20 @@ static int do_load_image(SdImgPayload_t id, void* img, u32 slen, u32 dest, u32 b
 		return ret;
 #endif
 
+#ifdef CONFIG_CMD_EXT4
+	if(1 == load_from_ext4(id))
+	{
+		if((len = ext4_load_file(GetImgName(id), (void*)dest)) != -1)
+		{
+			if(ext4_check_file(GetImgName(id), (void*)dest, len) == 0)
+			{
+				printf("\nEXT4 load: %s load: OK\n", GetImgName(id));
+				return 0;
+			}
+		}
+	}
+#endif
+
 	if (!img || slen==0)
 		return -1;
 	if (!loader)
@@ -1270,6 +1393,7 @@ static int do_bootmips(cmd_tbl_t * cmdtp, int flag, int argc, char * const argv[
 				case PT_CFG: _i=IMG_CFG;break;		\
 				case PT_ST: _i=IMG_ST;break;		\
 				case PT_LOGO: _i=IMG_LOGO;break;	\
+				case PT_AUDIO: _i=IMG_AUDIO;break;	\
 				default: _i=IMG_DATA;break;		\
 			}						\
 			_i;						\
