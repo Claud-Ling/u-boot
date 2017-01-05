@@ -107,6 +107,9 @@ config SIGMA_DTV_SECURITY
 	help
 	Enable this feature for image authentication.
 
+config PANEL_ID_EXTENSION
+	bool "Extend panel type to 16-bit long"
+
 endmenu
 endmenu
 config SYS_SOC

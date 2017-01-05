@@ -8,14 +8,20 @@
 /*
  *  * Board Configuration fields
  *   */
+#define BOARD_CONFIG_VERSION_1  1
+#define BOARD_CONFIG_VERSION_2  2
+#define BOARD_CONFIG_VERSION_3  3
+
 #define BOARD_VERSION		0
 #define BOARD_ID                1
 #define BOARD_USB_PORT          2
 #define BOARD_PANEL_TYPE        3
+#define BOARD_PANEL_TYPE_HI     10
 
 #define BOARD_MAC_ADDRESS       4
 #define BOARD_MAC_ADDRESS_SIZE  6
 
+#define BOARD_FRCX_PANEL_HI     11
 #define BOARD_FRCX_PANEL        14
 #define BOARD_ESN               16
 #define BOARD_ESN_SIZE          32
@@ -85,16 +91,20 @@ static unsigned char do_get_usb_port(void)
 	return board_config[BOARD_USB_PORT];
 }
 
-static unsigned char do_get_paneltype(void)
+static unsigned int do_get_paneltype(void)
 {
-	unsigned char type = 0;
+	unsigned int type = 0;
 	char *s = getenv("paneltype");
 	if (s) {
 		setenv("panel_type", s);
 		type = (unsigned char) simple_strtoul(s, NULL, 10);
 	} else {
-		setenv_ulong("panel_type", board_config[BOARD_PANEL_TYPE]);
-		type = board_config[BOARD_PANEL_TYPE];
+		if(board_config[BOARD_VERSION] == BOARD_CONFIG_VERSION_3) {
+			type = (board_config[BOARD_PANEL_TYPE_HI] << 8) | board_config[BOARD_PANEL_TYPE];
+		} else {
+			type = board_config[BOARD_PANEL_TYPE];
+		}
+		setenv_ulong("panel_type", type);
 	}
 
 	/*frcx panel*/
@@ -102,7 +112,11 @@ static unsigned char do_get_paneltype(void)
 	if (s) {
 		setenv("frcx_panel", s);
 	} else {
-		setenv_ulong("frcx_panel", board_config[BOARD_FRCX_PANEL]);
+		if(board_config[BOARD_VERSION] == BOARD_CONFIG_VERSION_3) {
+			setenv_ulong("frcx_panel", (board_config[BOARD_FRCX_PANEL_HI] << 8) | board_config[BOARD_FRCX_PANEL]);
+		} else {
+			setenv_ulong("frcx_panel", board_config[BOARD_FRCX_PANEL]);
+		}
 	}
 
 	return type;

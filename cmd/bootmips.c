@@ -24,6 +24,12 @@
 #define LENGHTH_SIZE		4
 #define MEM_FILE_OFFSET		0x1000
 
+#ifdef CONFIG_PANEL_ID_EXTENSION
+#  define PANEL_TYPE_INVAL 0xFFFF
+#else
+#  define PANEL_TYPE_INVAL 0xFF
+#endif
+
 /* detect host ending: 0-LE, 1-BE */
 #define GET_ENDING() ({                 \
 		union{int i;char c;} _t;\
@@ -1465,7 +1471,7 @@ static int do_bootmips(cmd_tbl_t * cmdtp, int flag, int argc, char * const argv[
 			goto OUT;
 		}
 
-		if (0xFF == tmp) {
+		if (PANEL_TYPE_INVAL == tmp) {
 			char* p = getenv("panel_type");
 			if (p != NULL) {
 				const char* attr = "panel";
@@ -1491,7 +1497,7 @@ static int do_bootmips(cmd_tbl_t * cmdtp, int flag, int argc, char * const argv[
 			goto OUT;
 		}
 
-		if (0xFF == tmp){
+		if (PANEL_TYPE_INVAL == tmp){
 			char* p = getenv("frcx_panel");
 			if (p != NULL) {
 				const char* attr = "frcxpal";
