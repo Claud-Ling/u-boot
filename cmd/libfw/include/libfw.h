@@ -388,5 +388,50 @@ extern int32_t libfw_builder_add_volume(void *ctx, const char *name,
  */
 extern void libfw_builder_dump(void *ctx);
 
+/*
+ * descriptions:
+ *    Create a volume chain
+ *
+ * parameters:
+ *    ctx [in]: firmware info context
+ *    chain_name [in]: name of chain
+ *    vol_name [in]: Name of this chain's parent volume
+ *
+ * return:
+ *    Success: 0
+ *    Failed: Negative value
+ */
+extern int32_t libfw_builder_create_volume_chain(void *ctx,
+				const char *chain_name, const char *vol_name);
+
+/*
+ * descriptions:
+ *    Bind a child volume to a chain
+ *
+ * parameters:
+ *    ctx [in]: firmware info context
+ *    chain_name [in]: name of chain
+ *    vol_name [in]: child volume name of this chain
+ *
+ * return:
+ *    Success: 0
+ *    Failed: Negative value
+ */
+extern int32_t libfw_builder_bind_volume_to_chain(void *ctx,
+				const char *chain_name, const char *vol_name);
+
+/*
+ * descriptions:
+ *    Delete a chain
+ *
+ * parameters:
+ *    ctx [in]: firmware info context
+ *    chain_name [in]: name of chain
+ *
+ * return:
+ *    Success: 0
+ *    Failed: Negative value
+ */
+extern int32_t libfw_builder_del_chain(void *ctx, const char *chain_name);
 
 #endif /* __LIBFW_H__ */

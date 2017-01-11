@@ -9,6 +9,7 @@ obj-y += flash_emmc.o
 obj-y += libfw.o
 obj-y += extension.o
 obj-y += message_ex.o
+obj-y += chain_ex.o
 
 
 

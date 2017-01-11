@@ -220,6 +220,8 @@ int32_t fw_msg_set(struct fw_ctx *ctx, const char *name, const char *value)
 			goto fail;
 		/* Allocate bare context */
 		ext->ext_ctx = msgex_ctx_alloc();
+		if (ext->ext_ctx == NULL)
+			goto fail;
 
 	}
 
@@ -276,6 +278,10 @@ static void msg_ex_parse(struct fw_ctx *ctx, void *buff)
 	}
 
 	mctx = msgex_ctx_alloc();
+	/* Out of memory */
+	if (!mctx) {
+		return;
+	}
 
 	struct msg_bdy *msg = NULL;
 	void *start = (void *)&hdr->data[0];
@@ -286,6 +292,10 @@ static void msg_ex_parse(struct fw_ctx *ctx, void *buff)
 	while (cnt < hdr->len) {
 		/* Allocate msg */
 		msg = (struct msg_bdy *)malloc(sizeof(struct msg_bdy));
+		/* Out of memory */
+		if (!msg) {
+			break;
+		}
 
 		/* Get msg total len */
 		msg->bdy_len = *(uint32_t *)pos;
@@ -348,6 +358,14 @@ static int32_t msg_ex_fill(struct fw_ctx *ctx, void **buff)
 	}
 
 	mctx = (struct msg_ctx *)ctx->exts[i].ext_ctx;
+	/* 
+	 * No context exist
+	 * Tell fw core layer, no buff for this extension
+	 */
+	if (mctx == NULL) {
+		*buff = NULL;
+		return 0;
+	}
 
 
 	len += sizeof(struct ext_hdr);
@@ -357,6 +375,10 @@ static int32_t msg_ex_fill(struct fw_ctx *ctx, void **buff)
 	}
 
 	info = (void *)malloc(len);
+	if (info == NULL) {
+		*buff = NULL;
+		return 0;
+	}
 	memset(info, 0, len);
 
 	hdr = (struct ext_hdr *)info;
@@ -447,6 +469,12 @@ static void msg_ex_dump(struct fw_ctx *ctx)
 			break;
 		}
 	}
+
+	/* Nothing need to do */
+	if (ext == NULL || ext->ext_ctx == NULL) {
+		return;
+	}
+
 	printf("=== message extension dump ===\n");
 	/* Nothing need to do */
 	if (ext == NULL || ext->ext_ctx == NULL) {
@@ -460,6 +488,7 @@ static void msg_ex_dump(struct fw_ctx *ctx)
 	}
 
 	printf("\n=== message extension end ===\n");
+	return;
 }
 
 struct extension_op msg_exop = {

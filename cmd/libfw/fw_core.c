@@ -182,6 +182,7 @@ int32_t fw_add_volume(struct fw_ctx *ctx, struct fw_vol *vol)
 		return -EEXIST;
 	}
 
+	vol->ctx = ctx;
 	list_add_tail(&vol->list, &ctx->vols);
 	return 0;
 }
@@ -271,8 +272,38 @@ match:
 
 struct fw_part * fw_vol_get_active_part(struct fw_vol *vol)
 {
+	struct fw_part *part = NULL;
+	struct fw_vol *parent_vol = NULL;
+	struct fw_ctx *ctx = vol->ctx;
+	uint32_t active_part = vol->info->active_part;
+	int32_t parent_id = -1;
 
-	return fw_vol_get_part_by_id(vol, vol->info->active_part);
+	if (ctx == NULL) {
+		fw_err("%s: volume context point is NULL\n",__func__);
+		goto skip_parent;
+	}
+
+	parent_id = __vchain_get_parent_id(ctx, vol->info->index);
+	/* This volume may not be bind as a chain */
+	if (parent_id < 0)
+		goto skip_parent;
+
+	parent_vol = fw_get_vol_by_id(ctx, parent_id);
+	/* Active part id honor to parent selection */
+	if (parent_vol) {
+		active_part = parent_vol->info->active_part;
+	}
+
+	/* The volume chain is incorrect, rollback*/
+	if (parent_vol && active_part >= vol->info->nr_parts) {
+		fw_err("%s: volume chain is incorrect, honor volume active part\n", __func__);
+		active_part = vol->info->active_part;
+	}
+
+skip_parent:
+	part = fw_vol_get_part_by_id(vol, active_part);
+
+	return part;
 }
 
 void fw_vol_set_active_part(struct fw_vol *vol, struct fw_part *part)
@@ -286,12 +317,39 @@ void fw_vol_set_active_part(struct fw_vol *vol, struct fw_part *part)
  */
 struct fw_part *fw_vol_get_inactive_part(struct fw_vol *vol)
 {
-	uint32_t inactive_id = 0;
+	struct fw_vol *parent_vol = NULL;
+	uint32_t inactive_id = 0, active_part = 0;
 	struct list_head *pos = NULL;
 	struct fw_part *part = NULL;
+	struct fw_ctx *ctx = vol->ctx;
+	int32_t parent_id = -1;
 
-	(vol->info->active_part + 1) < vol->info->nr_parts ?
-		(inactive_id = (vol->info->active_part + 1)) : (inactive_id = 0);
+	active_part = vol->info->active_part;
+
+	if (ctx == NULL) {
+		fw_err("%s: volume context point is NULL\n",__func__);
+		goto skip_parent;
+	}
+
+	parent_id = __vchain_get_parent_id(ctx, vol->info->index);
+	/* This volume may not be bind as a chain */
+	if (parent_id < 0)
+		goto skip_parent;
+
+	parent_vol = fw_get_vol_by_id(ctx, parent_id);
+	/* Active part id honor to parent selection */
+	if (!parent_vol) {
+		goto skip_parent;
+	}
+
+	/* Use parent 'active_part' selection */
+	if (vol->info->nr_parts == parent_vol->info->nr_parts) {
+		active_part = parent_vol->info->active_part;
+	}
+
+skip_parent:
+	(active_part + 1) < vol->info->nr_parts ?
+		(inactive_id = (active_part + 1)) : (inactive_id = 0);
 
 	list_for_each(pos, &vol->parts) {
 		part = list_entry(pos, struct fw_part, list);
@@ -503,8 +561,6 @@ int32_t fw_fill_info(struct fw_ctx *ctx, void **inf)
 		exop = find_ext_op(ctx->exts[i].magic);
 		ctx->exts[i].info_sz = exop->fill(ctx, &ctx->exts[i].info_data);
 		total_sz += ctx->exts[i].info_sz;
-		if (ctx->exts[i].info_data == NULL)
-			goto fail1;
 	}
 
 	total_sz += sizeof(struct fw_head);
@@ -536,6 +592,11 @@ int32_t fw_fill_info(struct fw_ctx *ctx, void **inf)
 	for (i=0; i<ctx->nr_exts; i++) {
 		n_bdy_off = (uint32_t)((unsigned long)pos - (unsigned long)info);
 		head->bdy[i+1] = n_bdy_off;
+
+		/* No data for this extension */
+		if (ctx->exts[i].info_data == NULL) {
+			continue;
+		}
 
 		memcpy(pos, ctx->exts[i].info_data, ctx->exts[i].info_sz);
 		pos = (void *)((unsigned long)pos + ctx->exts[i].info_sz);
@@ -1377,6 +1438,9 @@ struct fw_ctx *fw_init(const char *file)
 
 		if (ret)
 			goto err1;
+	} else {
+	/* Vchain extension merge, alwasy honnor updater's firmware info */
+		__vchain_merge(bd_ctx, ctx);
 	}
 
 
@@ -1470,4 +1534,44 @@ void fw_dump(struct fw_ctx *ctx)
 	}
 	return;
 }
+
+int32_t fw_create_volume_chain(struct fw_ctx *ctx, const char *chain,
+								const char *vol_name)
+{
+	struct fw_vol *vol = NULL;
+	if (ctx == NULL || chain == NULL || vol_name == NULL)
+		return -EINVAL;
+
+	vol = fw_get_vol_by_name(ctx, vol_name);
+
+	if (!vol)
+		return -ENODEV;
+
+	return __create_vchain(ctx, chain, vol->info->index);
+}
+
+int32_t fw_bind_volume_to_chain(struct fw_ctx *ctx, const char *chain,
+								const char *vol_name)
+{
+	struct fw_vol *vol = NULL;
+	if (ctx == NULL || chain == NULL || vol_name == NULL)
+		return -EINVAL;
+
+	vol = fw_get_vol_by_name(ctx, vol_name);
+
+	if (!vol)
+		return -ENODEV;
+
+	return __vchain_bind_vol(ctx, chain, vol->info->index);
+	
+}
+
+int32_t fw_del_chain(struct fw_ctx *ctx, const char *chain)
+{
+	if (ctx == NULL || chain == NULL)
+		return -EINVAL;
+
+	return __vchain_del(ctx, chain);
+}
+
 

@@ -298,3 +298,20 @@ void libfw_builder_dump(void *ctx)
 	return;
 }
 
+int32_t libfw_builder_create_volume_chain(void *ctx,
+					const char *chain_name, const char *vol_name)
+{
+	return fw_create_volume_chain((struct fw_ctx *)ctx, chain_name, vol_name);
+}
+
+int32_t libfw_builder_bind_volume_to_chain(void *ctx,
+				const char *chain_name, const char *vol_name)
+{
+	return fw_bind_volume_to_chain((struct fw_ctx *)ctx, chain_name, vol_name);
+}
+
+int32_t libfw_builder_del_chain(void *ctx, const char *chain_name)
+{
+	return fw_del_chain((struct fw_ctx *)ctx, chain_name);
+}
+

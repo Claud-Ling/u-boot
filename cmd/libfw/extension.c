@@ -1,9 +1,11 @@
 #include <fw_core.h>
 
 extern struct extension_op msg_exop;
+extern struct extension_op vchain_exop;
 //static struct extension_op default_exop;
 struct extension_op *extop_list[] = {
 	&msg_exop,
+	&vchain_exop,
 	//&default_exop,
 };
 

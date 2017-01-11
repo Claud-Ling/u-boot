@@ -136,6 +136,7 @@ struct fw_vol {
 	struct list_head list;
 	struct list_head parts;
 	struct vol_info *info;
+	struct fw_ctx *ctx;
 };
 
 
@@ -246,5 +247,14 @@ extern int32_t fw_updater_ctx_save(const char *file);
 extern struct extension *fw_register_extension(struct fw_ctx *ctx, uint32_t magic);
 extern int32_t fw_msg_set(struct fw_ctx *ctx, const char *name, const char *value);
 extern char * fw_msg_get(struct fw_ctx *ctx, const char *name);
+
+extern int32_t fw_create_volume_chain(struct fw_ctx *ctx, const char *chain, const char *vol_name);
+extern int32_t fw_bind_volume_to_chain(struct fw_ctx *ctx, const char *chain, const char *vol_name);
+extern int32_t fw_del_chain(struct fw_ctx *ctx, const char *chain);
+extern int32_t __create_vchain(struct fw_ctx *ctx, const char *name, uint32_t parent_id);
+extern int32_t __vchain_bind_vol(struct fw_ctx *ctx, const char *name, int32_t vol_id);
+extern int32_t __vchain_get_parent_id(struct fw_ctx *ctx, int32_t child);
+extern int32_t __vchain_del(struct fw_ctx *ctx, const char *name);
+extern void __vchain_merge(struct fw_ctx *dst_ctx, struct fw_ctx *src_ctx);
 
 #endif /* __SIGMA_FW_CORE_H__ */
