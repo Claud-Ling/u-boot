@@ -781,7 +781,6 @@ U_BOOT_CMD(
 #endif	/* CONFIG_CMD_BOOTI */
 
 #ifdef CONFIG_CMD_BOOTA
-#if defined(CONFIG_TANGO4)
 static inline unsigned int swapl(unsigned int x)
 {
     return ((unsigned long int)((((unsigned long int)(x) & 0x000000ffU) << 24) |
@@ -790,6 +789,7 @@ static inline unsigned int swapl(unsigned int x)
         (((unsigned long int)(x) & 0xff000000U) >> 24)));
 }
 
+#if defined(CONFIG_TANGO4)
 static int do_boota(cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])
 {
     unsigned char* load_addr = 0;
@@ -875,11 +875,16 @@ static int do_boota(cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])
     unsigned char* load_addr = 0;
 
     boot_img_hdr header;
+#ifdef CONFIG_CMD_BOOTI
+    struct Image_header ih;
+#endif
+    unsigned int uimage_hdr_magic;
     unsigned char *kernel_img  = NULL;
     unsigned char *ramdisk_img = NULL;
+    unsigned char *dtb_img  = NULL;
 
     unsigned int kernel_num_pages = 0;
-    //unsigned int ramdisk_num_pages = 0;
+    unsigned int ramdisk_num_pages = 0;
 
     //char* local_args[2];
     char cmd_buffer[32];
@@ -931,19 +936,44 @@ static int do_boota(cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])
 #endif
 
     kernel_num_pages  = ( (unsigned int)header.kernel_size  + header.page_size - 1) / header.page_size;
-    //ramdisk_num_pages = ( (unsigned int)header.ramdisk_size + header.page_size - 1) / header.page_size;
+    ramdisk_num_pages = ( (unsigned int)header.ramdisk_size + header.page_size - 1) / header.page_size;
 
     /* gets kernel and ramdisk start address */
     kernel_img  =  load_addr + header.page_size;
     ramdisk_img =  kernel_img + (kernel_num_pages * header.page_size);
+    if( (unsigned int)header.second_size )
+    	dtb_img = ramdisk_img + (ramdisk_num_pages * header.page_size);
 
     printf( "kernel: %p\n", kernel_img );
     printf( "ram disk: %p\n", ramdisk_img );
+    if( (unsigned int)header.second_size )
+    	printf( "dtb: 0x%08x\n", (unsigned int)dtb_img );
 
-    sprintf( cmd_buffer, "bootm %lx %lx", (unsigned long)kernel_img, (unsigned long)ramdisk_img );
-    run_command( cmd_buffer, flag );
-
-    return 0;
+    if( (unsigned int)header.second_size ) {
+    	memcpy( &uimage_hdr_magic, kernel_img, sizeof(unsigned int) );
+    	/* check to see the kernel image is uImage  */
+    	if ( uimage_hdr_magic == swapl(IH_MAGIC) ) {
+    		sprintf( cmd_buffer, "bootm %lx %lx %lx", (unsigned long)kernel_img, (unsigned long)ramdisk_img, (unsigned long)dtb_img );
+    		run_command( cmd_buffer, flag );
+    		return 0;
+    	}
+    	else {
+#ifdef CONFIG_CMD_BOOTI
+    		memcpy( &ih, kernel_img, sizeof(struct Image_header) );
+    		/* check to see the kernel image is Image  */
+    		if ( ih->magic == le32_to_cpu(LINUX_ARM64_IMAGE_MAGIC) ) {
+    			sprintf( cmd_buffer, "booti %lx %lx %lx", (unsigned long)kernel_img, (unsigned long)ramdisk_img, (unsigned long)dtb_img );
+    			run_command( cmd_buffer, flag );
+    			return 0;
+    		}
+#endif
+    		return 1;
+    	}
+    }else {
+    	sprintf( cmd_buffer, "bootm %lx %lx", (unsigned long)kernel_img, (unsigned long)ramdisk_img );
+    	run_command( cmd_buffer, flag );
+    	return 0;
+    }
 }
 
 U_BOOT_CMD(
