@@ -298,10 +298,10 @@ static int ehci_trix_probe(struct udevice *dev)
 
 	hccr = (struct ehci_hccr *)(hcd_base + 0x100);
 	hcor = (struct ehci_hcor *)
-		((u32)hccr + HC_LENGTH(ehci_readl(&hccr->cr_capbase)));
+		((uintptr_t)hccr + HC_LENGTH(ehci_readl(&hccr->cr_capbase)));
 
-	printf("ehci-trix: init hccr %x and hcor %x hc_length %d\n",
-	      (u32)hccr, (u32)hcor,
+	printf("ehci-trix: init hccr %p and hcor %p hc_length %d\n",
+	      hccr, hcor,
 	      (u32)HC_LENGTH(ehci_readl(&hccr->cr_capbase)));
 
 	return ehci_register(dev, hccr, hcor, NULL, 0, USB_INIT_HOST);

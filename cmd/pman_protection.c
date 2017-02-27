@@ -181,7 +181,7 @@ static int pman_add_one_region(struct ptbl_hdr* tbl, struct ptab_rgn_body* rgn)
 
 static int setup_pman_by_armor(struct ptbl_hdr* tbl)
 {
-#define TO_PHY_ADDR(v) ((uint32_t)(v))
+#define TO_PHY_ADDR(v) ((uint32_t)(uintptr_t)(v)) /*use 32-bit for phyaddr*/
 	flush_cache((ulong)tbl, PTAB_LENGTH(tbl));
 	return secure_set_mem_protection(TO_PHY_ADDR(tbl), PTAB_LENGTH(tbl));
 #undef TO_PHY_ADDR

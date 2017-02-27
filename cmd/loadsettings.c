@@ -327,7 +327,7 @@ static int do_loadsettings(cmd_tbl_t * cmdtp, int flag, int argc, char * const a
 
 	load_addr = (void*)simple_strtoul(argv[1], NULL, 16);
 	len = (u32)simple_strtoul(argv[2], NULL, 16);
-	printf("load initsettings.file at 0x%08x(0x%08x) ...\n", (int)load_addr, len);
+	printf("load initsettings.file at %p(0x%08x) ...\n", load_addr, len);
 
 	ret = load_settings(load_addr, len);
 	return ret;

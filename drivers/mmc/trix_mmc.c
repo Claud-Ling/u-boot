@@ -97,7 +97,7 @@ static int sdh_pinshare_init(void)
 
 static char *SDHI_NAME = "sigma_sdhi";
 
-int monza_sdhi_init(u32 regbase,  u32 quirks)
+int monza_sdhi_init(uintptr_t regbase,  u32 quirks)
 {
 	struct sdhci_host *host = NULL;
 	//u32 cap;

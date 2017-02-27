@@ -947,7 +947,7 @@ static int do_boota(cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])
     printf( "kernel: %p\n", kernel_img );
     printf( "ram disk: %p\n", ramdisk_img );
     if( (unsigned int)header.second_size )
-    	printf( "dtb: 0x%08x\n", (unsigned int)dtb_img );
+    	printf( "dtb: %p\n", dtb_img );
 
     if( (unsigned int)header.second_size ) {
     	memcpy( &uimage_hdr_magic, kernel_img, sizeof(unsigned int) );
@@ -961,7 +961,7 @@ static int do_boota(cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])
 #ifdef CONFIG_CMD_BOOTI
     		memcpy( &ih, kernel_img, sizeof(struct Image_header) );
     		/* check to see the kernel image is Image  */
-    		if ( ih->magic == le32_to_cpu(LINUX_ARM64_IMAGE_MAGIC) ) {
+    		if ( ih.magic == le32_to_cpu(LINUX_ARM64_IMAGE_MAGIC) ) {
     			sprintf( cmd_buffer, "booti %lx %lx %lx", (unsigned long)kernel_img, (unsigned long)ramdisk_img, (unsigned long)dtb_img );
     			run_command( cmd_buffer, flag );
     			return 0;

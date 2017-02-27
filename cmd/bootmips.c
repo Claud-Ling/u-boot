@@ -4,6 +4,9 @@
 #include <asm/arch/reg_io.h>
 #include <malloc.h>
 #include <mipsimg.h>
+#ifdef CONFIG_CMD_NAND
+#include <nand.h>
+#endif
 #ifdef CONFIG_CMD_EXT4
 #include <fs.h>
 #include <image.h>
@@ -48,6 +51,16 @@
 
 #define getenv_yesno(v) ({char* _s=getenv(v);(_s && (*_s == 'n')) ? 0 : 1;})	/* default true */
 #define getenv_yes(v) ({char* _s=getenv(v);(_s && (*_s == 'y')) ? 1 : 0;})	/* default false */
+
+#ifdef pr_err
+#undef pr_err
+#endif
+#ifdef pr_warn
+#undef pr_warn
+#endif
+#ifdef pr_info
+#undef pr_info
+#endif
 
 #define pr_err(fmt...)  printf("error: "fmt)
 #define pr_warn(fmt...) printf("warn:  "fmt)
@@ -297,8 +310,8 @@ static void free_buffer(void)
 }
 
 #ifdef CONFIG_CMD_MMC
-#define MMC_ISBLKALIGN(a) (!(((int)a) & 0x1FF))
-#define MMC_ADDR2BLK(a)	((u32)(((int)a) >> 9))
+#define MMC_ISBLKALIGN(a) (!(((uintptr_t)a) & 0x1FF))
+#define MMC_ADDR2BLK(a)	((u32)(((uintptr_t)a) >> 9))
 #define MMC_SIZE2CNT(sz) (((sz) + 511) >> 9)
 #define PAGESIZE 512
 
@@ -315,14 +328,14 @@ static int mmc_read_data(void *addr, u32 ofs, u32 len)
 
 static u32 mmc_get_loadaddr(void* img, u32 len, u32 addr)
 {
-	#define GETLOADADDR(loc,len) ({			\
-		void* buff = get_buffer(len, PAGESIZE);	\
-		mmc_read_data(buff, (u32)loc, len);	\
-		GetLoadAddr(buff, len);			\
+	#define GETLOADADDR(loc,len) ({				\
+		void* buff = get_buffer(len, PAGESIZE);		\
+		mmc_read_data(buff, (uintptr_t)loc, len);	\
+		GetLoadAddr(buff, len);				\
 	})
-	#define PAGEADDR(a) ((u32)(a) & (~(PAGESIZE - 1)))
+	#define PAGEADDR(a) ((uintptr_t)(a) & (~(PAGESIZE - 1)))
 	u32 dest = addr;
-	u32 slen = ((u32)img + len) & (PAGESIZE - 1);
+	u32 slen = ((uintptr_t)img + len) & (PAGESIZE - 1);
 	slen += ((slen == 0) || (PAGEADDR(img + len) != PAGEADDR(img + len - 12))) ? PAGESIZE : 0;
 
 	if (0 == (dest = GETLOADADDR((img + len - 12), slen)))
@@ -334,7 +347,7 @@ static u32 mmc_get_loadaddr(void* img, u32 len, u32 addr)
 
 static int mmc_load_image(void* img, u32 len, void* dest)
 {
-	int ret = mmc_read_data(dest, (u32)img, len);
+	int ret = mmc_read_data(dest, (uintptr_t)img, len);
 	if (ret > 0)
 		flush_cache((ulong)dest, len);
 	return ret;
@@ -353,7 +366,7 @@ static int mmc_get_header(void *load_addr, int load_size, mips_img_hdr* hdr)
 	}
 
 	buffer = get_buffer(rdlen, PAGESIZE);
-	mmc_read_data(buffer, (u32)load_addr, rdlen);
+	mmc_read_data(buffer, (uintptr_t)load_addr, rdlen);
 	memcpy(hdr, buffer, sizeof(mips_img_hdr));
 	refine_header(hdr);
 	return 0;
@@ -364,7 +377,7 @@ static void* mmc_load_memfile(void *img, u32 len, void *buff, u32 blen)
 	void *ret = NULL;
 	if (blen >= ROUND512(len))
 	{
-		mmc_read_data(buff, (u32)img, len);
+		mmc_read_data(buff, (uintptr_t)img, len);
 		ret = buff;
 	}
 	return ret;
@@ -374,7 +387,7 @@ static void* mmc_load_initsettings(void *img, u32 len)
 {
 	void* buffer = get_buffer(len, PAGESIZE);
 	if (buffer)
-		mmc_read_data(buffer, (u32)img, len);
+		mmc_read_data(buffer, (uintptr_t)img, len);
 	return buffer;
 }
 
@@ -399,7 +412,6 @@ DECLARE_BOOT_DEVICE(mmc,
 #endif /* CONFIG_CMD_MMC */
 
 #ifdef CONFIG_CMD_NAND
-#include <nand.h>
 #define PAGESIZE nand_info[nand_curr_device].writesize
 
 #ifdef DEBUG
@@ -416,7 +428,7 @@ DECLARE_BOOT_DEVICE(mmc,
 		CHK_ALIGN(a);				\
 		(u32)((u32)(a) & ~(PAGESIZE - 1));	\
 	})
-#define NAND_ISALIGN(a) (!((u32)(a) & (PAGESIZE - 1)))
+#define NAND_ISALIGN(a) (!((uintptr_t)(a) & (PAGESIZE - 1)))
 
 static int nand_read_data(void *addr, u32 ofs, u32 cnt)
 {
@@ -424,22 +436,22 @@ static int nand_read_data(void *addr, u32 ofs, u32 cnt)
 	int flag = 0;
 	char cmd_buffer[64];
 
-	sprintf(cmd_buffer, "nand read %x %x %x", (unsigned int)addr, TONANDADDR(ofs), cnt);
+	sprintf(cmd_buffer, "nand read %p %x %x", addr, TONANDADDR(ofs), cnt);
 	ret = run_command(cmd_buffer, flag);
 	return (ret==0) ? cnt : 0;
 }
 
 static u32 nand_get_loadaddr(void* img, u32 len, u32 addr)
 {
-	#define GETLOADADDR(loc,len) ({			\
-		void* buff = get_buffer(len, PAGESIZE);	\
-		nand_read_data(buff, (u32)loc, len);	\
-		GetLoadAddr(buff, len);			\
+	#define GETLOADADDR(loc,len) ({				\
+		void* buff = get_buffer(len, PAGESIZE);		\
+		nand_read_data(buff, (uintptr_t)loc, len);	\
+		GetLoadAddr(buff, len);				\
 	})
-	#define PAGEADDR(a) ((u32)(a) & (~(PAGESIZE - 1)))
+	#define PAGEADDR(a) ((uintptr_t)(a) & (~(PAGESIZE - 1)))
 
 	u32 dest = addr;
-	u32 slen = ((u32)img + len) & (PAGESIZE - 1);
+	u32 slen = (u32)((uintptr_t)img + len) & (PAGESIZE - 1);
 	slen += (slen == 0) || (PAGEADDR(img + len) != PAGEADDR(img + len - 12)) ? PAGESIZE : 0;
 
 	if (0 == (dest = GETLOADADDR((img + len - 12), slen)))
@@ -451,7 +463,7 @@ static u32 nand_get_loadaddr(void* img, u32 len, u32 addr)
 
 static int nand_load_image(void* img, u32 len, void* dest)
 {
-	int ret = nand_read_data(dest, (u32)img, len);
+	int ret = nand_read_data(dest, (uintptr_t)img, len);
 	if (ret > 0)
 		flush_cache((ulong)dest, len);
 	return ret;
@@ -463,12 +475,12 @@ static int nand_get_header(void *load_addr, int load_size, mips_img_hdr* hdr)
 	u32 rdlen = sizeof(mips_img_hdr);
 
 	if (!NAND_ISALIGN(load_addr)) {
-		pr_err("Not a nand page (0x%x) aligned address (0x%x)\n", PAGESIZE, (u32)load_addr);
+		pr_err("Not a nand page (0x%x) aligned address (%p)\n", PAGESIZE, load_addr);
 		return 1;
 	}
 
 	buffer = get_buffer(rdlen, PAGESIZE);
-	nand_read_data(buffer, (u32)load_addr, rdlen);
+	nand_read_data(buffer, (uintptr_t)load_addr, rdlen);
 	memcpy(hdr, buffer, sizeof(mips_img_hdr));
 	refine_header(hdr);
 	return 0;
@@ -479,7 +491,7 @@ static void* nand_load_memfile(void *img, u32 len, void *buff, u32 blen)
 	void *ret = NULL;
 	if (blen >= len)
 	{
-		nand_read_data(buff, (u32)img, len);
+		nand_read_data(buff, (uintptr_t)img, len);
 		ret = buff;
 	}
 	return ret;
@@ -489,7 +501,7 @@ static void* nand_load_initsettings(void *img, u32 len)
 {
 	void* buffer = get_buffer(len, PAGESIZE);
 	if (buffer)
-		nand_read_data(buffer, (u32)img, len);
+		nand_read_data(buffer, (uintptr_t)img, len);
 	return buffer;
 }
 
@@ -700,7 +712,7 @@ static int mdbg_domain_load(int id, void* buff, int len)
 	sz = file_fat_read(url, (unsigned char*)buff, len);
 	if (sz > 0) {
 		printf("[  OK] ");
-		printf("load '%s' to 0x%08x(0x%08x)\n", GetImgName(id), (int)buff, sz);
+		printf("load '%s' to %p(0x%08x)\n", GetImgName(id), buff, sz);
 		flush_cache((ulong)buff, sz);
 	} else {
 		printf("[FAIL] ");
@@ -852,7 +864,7 @@ static int do_load_memfile(void* img, u32 len, void* mimg_ddr, u32 mlen, int tar
 	int ret = 0;
 	void *mdest = NULL;
 
-	if(!img || (((int)img) & 3) || !mimg_ddr || len < mlen + MEM_FILE_OFFSET + LENGHTH_SIZE)
+	if(!img || (((uintptr_t)img) & 3) || !mimg_ddr || len < mlen + MEM_FILE_OFFSET + LENGHTH_SIZE)
 		return 0;
 
 	mdest = (void*)(img + MEM_FILE_OFFSET);
@@ -884,7 +896,7 @@ static int do_check_memfile(void *img, u32 len, int target_ending)
 	if (!img || len < MEM_FILE_OFFSET + 4 + MAX_MEM_FILE_SIZE)
 		return 1;
 
-	if (((int)img) & 3)
+	if (((uintptr_t)img) & 3)
 	{
 		pr_err("base addr(%p) doesn't aligned by DWORD!\n", img);
 		return 1;
@@ -1062,7 +1074,7 @@ static int do_fixup_xml_node_attr(void* base, unsigned target_ending, unsigned o
 	char *p = NULL, *q = NULL, *r = NULL;
 	char str_buff[32];
 
-	if (!base || (((int)base) & 3))
+	if (!base || (((uintptr_t)base) & 3))
 	{
 		pr_err("invalid memfile addr:%p\n", base);
 		return 1;
@@ -1113,7 +1125,7 @@ static int do_fixup_xml_node_attr(void* base, unsigned target_ending, unsigned o
 			if ((r - q) < strlen(str_buff))
 			{
 				int nbytes = strlen(str_buff) - (r - q);
-				pr_info("memmove memfile at offset %d by %d bytes\n", ((void*)r - base - dlsize), nbytes);
+				pr_info("memmove memfile at offset %ld by %d bytes\n", ((uintptr_t)r - (uintptr_t)base - dlsize), nbytes);
 				memmove(r + nbytes, r, dlen - ((void*)r - base - dlsize));
 				r += nbytes;
 				dlen += nbytes;
@@ -1186,7 +1198,7 @@ static int do_fixup_loadaddr(SdImgPayload_t id, void* cfg, unsigned dlen, unsign
 	return 0;
 }
 
-static int do_load_image(SdImgPayload_t id, void* img, u32 slen, u32 dest, u32 blen, loadfunc_t loader)
+static int do_load_image(SdImgPayload_t id, void* img, u32 slen, uintptr_t dest, u32 blen, loadfunc_t loader)
 {
 	int ret = 0, len = 0;
 
@@ -1224,7 +1236,7 @@ static int do_load_image(SdImgPayload_t id, void* img, u32 slen, u32 dest, u32 b
 	len = (blen == 0 || blen > slen) ? slen : blen;
 	//stop mips
 	stop_mips(id);
-	debug("load '%s' to 0x%08x(0x%08x)\n", GetImgName(id), dest, len);
+	debug("load '%s' to %p(0x%08x)\n", GetImgName(id), (void*)dest, len);
 
 	//load images
 	ret = loader(img, len, (void*)dest);
@@ -1240,9 +1252,9 @@ static int do_bootmips(cmd_tbl_t * cmdtp, int flag, int argc, char * const argv[
 	int ret = 0;
 	mips_img_hdr header, *hdr = &header;
 	unsigned int npages = 0;
-	unsigned int av_addr = 0;
+	uintptr_t av_addr = 0;
 	unsigned int av_size = 0;
-	unsigned int disp_addr = 0;
+	uintptr_t disp_addr = 0;
 	unsigned int disp_size = 0;
 	unsigned int cfg_size = 0;
 	unsigned int st_size = 0;
@@ -1332,7 +1344,7 @@ static int do_bootmips(cmd_tbl_t * cmdtp, int flag, int argc, char * const argv[
  	 * this is raw mips boot image, let's find out where the 
 	 * av, disp and other images be
 	 */
-	printf("Boot mips from %s at %08x\n", p ? p : "ddr", (int)load_addr);
+	printf("Boot mips from %s at %p\n", p ? p : "ddr", load_addr);
 
 	#define LOCAL_PT_TYPE(i) PT_GET_TYPE(hdr->data[i].type)
 	#define LOCAL_PT_MSIZE(i) PT_GET_MSIZE(hdr->data[i].type)
@@ -1341,8 +1353,8 @@ static int do_bootmips(cmd_tbl_t * cmdtp, int flag, int argc, char * const argv[
 		(n)=((h)->data[i].size + (h)->page_size - 1) / (h)->page_size,		\
 		(d)=(d) + (n) * (h)->page_size, i++)
 	for_each_image(i, img, npages, hdr, load_addr) {
-		printf("##%-20s 0x%08x(0x%08x) -> 0x%08x\n",
-			hdr->data[i].name, (int)img, hdr->data[i].size, hdr->data[i].addr);
+		printf("##%-20s %8p(0x%08x) -> 0x%08x\n",
+			hdr->data[i].name, img, hdr->data[i].size, hdr->data[i].addr);
 		if (PT_AV == LOCAL_PT_TYPE(i)) {
 			av_size = hdr->data[i].size;
 			av_addr = hdr->data[i].addr;
@@ -1381,7 +1393,7 @@ static int do_bootmips(cmd_tbl_t * cmdtp, int flag, int argc, char * const argv[
 	 */
 	if (cfg_img) {
 		cfg_buf = get_buffer(MAX_MEM_FILE_SIZE, 1);
-		if ((cfg_size=do_load_image(IMG_CFG,cfg_img,cfg_size,(u32)cfg_buf,MAX_MEM_FILE_SIZE,bootdev->load_image)) < 0)
+		if ((cfg_size=do_load_image(IMG_CFG,cfg_img,cfg_size,(uintptr_t)cfg_buf,MAX_MEM_FILE_SIZE,bootdev->load_image)) < 0)
 			cfg_buf = NULL;
 	}
 
@@ -1554,9 +1566,9 @@ static int do_bootmips(cmd_tbl_t * cmdtp, int flag, int argc, char * const argv[
 	{
 #define MAX_SETTINGS_SIZE 0x4000	/* 16k? */
 		void *st_buf = get_buffer(MAX_SETTINGS_SIZE, 1);
-		st_size = do_load_image(IMG_ST, st_img, st_size, (u32)st_buf, MAX_SETTINGS_SIZE, bootdev->load_image);
+		st_size = do_load_image(IMG_ST, st_img, st_size, (uintptr_t)st_buf, MAX_SETTINGS_SIZE, bootdev->load_image);
 		if(st_size > 0) {
-			sprintf(cmd_buffer, "loadsettings %x %x", (unsigned int)st_buf, st_size);
+			sprintf(cmd_buffer, "loadsettings %p %x", st_buf, st_size);
 			ret = run_command(cmd_buffer, flag);
 			if (ret != 0)
 				goto OUT;

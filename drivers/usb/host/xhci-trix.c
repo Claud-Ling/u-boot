@@ -135,6 +135,8 @@ void usb3_power_init(void)
 
 	/* Set GPIO7 act as USB3_OC */
 	MWriteRegByte(0x1500ee21, 0x20, 0x70);
+#elif defined (CONFIG_SIGMA_SOC_UNION)
+	printf("WARN: No XHCI for union!!\n");
 #else
 	#error "Unknow SOC type!!"
 #endif
@@ -151,10 +153,10 @@ int xhci_port_change(void)
 	volatile uint32_t volatile *reg = NULL;
 
 	struct xhci_hccr *hccr = (struct xhci_hccr *)(SIGMA_XHCI_BASE);
-	struct xhci_hcor *hcor = (struct xhci_hcor *)((uint32_t) hccr
+	struct xhci_hcor *hcor = (struct xhci_hcor *)((uintptr_t) hccr
 			+ HC_LENGTH(xhci_readl(&(hccr->cr_capbase))));
 
-	printf("%s:hccr %x, hcor %x\n", __func__, (uint32_t)hccr, (uint32_t)hcor);
+	printf("%s:hccr %p, hcor %p\n", __func__, hccr, hcor);
 	max_port = HCS_MAX_PORTS(xhci_readl(&hccr->cr_hcsparams1));
 
 	for (i=1; i<=max_port; i++) {
@@ -195,10 +197,10 @@ static int xhci_trix_probe(struct udevice *dev)
 
 	hccr = (struct xhci_hccr *)(hcd_base);
 	hcor = (struct xhci_hcor *)
-		((u32)hccr + HC_LENGTH(xhci_readl(&hccr->cr_capbase)));
+		((uintptr_t)hccr + HC_LENGTH(xhci_readl(&hccr->cr_capbase)));
 
-	printf("xhci-trix: init hccr %x and hcor %x hc_length %d\n",
-	      (u32)hccr, (u32)hcor,
+	printf("xhci-trix: init hccr %p and hcor %p hc_length %d\n",
+	      hccr, hcor,
 	      (u32)HC_LENGTH(xhci_readl(&hccr->cr_capbase)));
 
 	return xhci_register(dev, hccr, hcor);
