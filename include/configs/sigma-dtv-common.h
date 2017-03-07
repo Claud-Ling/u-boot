@@ -279,6 +279,7 @@
 #define CONFIG_CMD_BOOTA
 #ifdef CONFIG_ARM64
 # define CONFIG_CMD_BOOTI
+# define CONFIG_CMD_FIPTOOL
 #endif
 
 #define CONFIG_CMD_CACHE

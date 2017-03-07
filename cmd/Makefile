@@ -50,6 +50,7 @@ obj-$(CONFIG_CMD_MPROBE) += mprobe.o
 obj-$(CONFIG_CMD_ARMORSHELL) += armor.o
 obj-$(CONFIG_CMD_KERNEL) += kernel.o
 obj-$(CONFIG_CMD_TIMESTAMP) += timestamp.o
+obj-$(CONFIG_CMD_FIPTOOL) += fiptool.o
 endif
 ifdef CONFIG_4xx
 obj-$(CONFIG_CMD_SETGETDCR) += dcr.o
