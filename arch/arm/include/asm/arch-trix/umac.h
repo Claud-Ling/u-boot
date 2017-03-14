@@ -49,7 +49,7 @@
 #define UMAC_QUIRK_VARIABLE_ADDR	(1<<2)
 
 #ifndef __ASSEMBLY__
-typedef unsigned long U32;
+typedef unsigned int U32;
 
 #ifdef NW
 #undef NW
@@ -436,8 +436,14 @@ static inline const U32 umac_get_addr(int uid)
  *   q   - quirks
  *   a   - base addr
  */
+#ifdef CONFIG_ARM64
+#define UMAC_DEVICE_INIT(mac,phy,abt,w,q,a) 			\
+	.quad mac,phy,abt;					\
+	.long w,q,a;
+#else
 #define UMAC_DEVICE_INIT(mac,phy,abt,w,q,a) 			\
 	.long mac,phy,abt,w,q,a;
+#endif
 
 .macro umac_get_dev rd, rtbl, rid
 	mov	\rd, #SIZEOF_UMAC_DEV

@@ -527,7 +527,8 @@ mcu_timeout_us:
 
 /*
  * umac device table
+ * note it requires 8-byte alignment in case of arm64
  */
-.global trix_udev_tbl
+.global trix_udev_tbl ; .align 3
 trix_udev_tbl:
 	UMAC_DEV_INITIALIZER

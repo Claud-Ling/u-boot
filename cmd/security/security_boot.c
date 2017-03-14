@@ -51,6 +51,11 @@ enum {
 	APP_KEY,
 	INVALID_KEY
 };
+
+#define PUBLIC_KEY_NBYTES	0x100
+
+#ifndef CONFIG_ARM64
+
 #define PUBLIC_KEY_DDR_ENTRY    0xA000
 #define PUBLIC_KEY_PREBOOT_OFS	0x0
 #define PUBLIC_KEY_UBOOT_OFS	0x100
@@ -79,6 +84,22 @@ static int inline get_public_key_offset(int keytype)
 	return offset;
 }
 
+static int otp_get_rsa_pub_key(void *key, int len)
+{
+	assert(len >= PUBLIC_KEY_NBYTES);
+	memcpy(key,
+		(void*)(PUBLIC_KEY_DDR_ENTRY + get_public_key_offset(PREBOOT_KEY)),
+		PUBLIC_KEY_NBYTES);
+	return 0;
+}
+#else /*CONFIG_ARM64*/
+static int otp_get_rsa_pub_key(void *key, int len)
+{
+	printf ("TODO: get rsa pub key from otp\n");
+	return -1;
+}
+#endif /*CONFIG_ARM64*/
+
 /*
  * Judge the bootloader is signed by vizio key or not
  * purpose: disable console by running a vizio signed image.
@@ -87,12 +108,17 @@ static int inline get_public_key_offset(int keytype)
  */
 static int is_vizio_signed_img(void)
 {
-	unsigned char *key;
+	unsigned char key[PUBLIC_KEY_NBYTES];
 	int ret = 0;
-	key = (unsigned char *)(PUBLIC_KEY_DDR_ENTRY + get_public_key_offset(PREBOOT_KEY));
+
+	ret = otp_get_rsa_pub_key(key, sizeof(key));
+	if (ret != 0) {
+		//printf("failed to get rsa pub key from otp, ret=%d\n", ret);
+		return ret;
+	}
 
 	/*Vizio should inform us if they have new key...*/
-	if(!memcmp(key, vizio_product_key, 256))
+	if(!memcmp(key, vizio_product_key, PUBLIC_KEY_NBYTES))
 	{
 		printf("valid Vizio signed image\n");
 		ret = 1;

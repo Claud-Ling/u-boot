@@ -258,7 +258,7 @@ static int parse_fip(u32 ofs, fip_toc_header_t *toc_header_out)
 		image = malloc(sizeof(fip_image_t));
 		if (image == NULL)
 		{
-			pr_err("malloc %d bytes for image structure failed\n", sizeof(fip_image_t));
+			pr_err("malloc %ld bytes for image structure failed\n", sizeof(fip_image_t));
 			goto error;
 		}
 
@@ -348,7 +348,7 @@ static fip_image_t *read_image_from_file(toc_entry_t *toc_entry, char *file_name
 	image = malloc(sizeof(*image));
 	if (image == NULL)
 	{
-		pr_err("malloc %d bytes for image structure failed\n", sizeof(*image));
+		pr_err("malloc %ld bytes for image structure failed\n", sizeof(*image));
 		goto error;
 	}
 	memcpy(&image->uuid, &toc_entry->uuid, sizeof(struct uuid));
@@ -371,7 +371,7 @@ static fip_image_t *read_image_from_ddr(toc_entry_t *toc_entry)
 	image = malloc(sizeof(*image));
 	if (image == NULL)
 	{
-		pr_err("malloc %d bytes for image structure failed\n", sizeof(*image));
+		pr_err("malloc %ld bytes for image structure failed\n", sizeof(*image));
 		return NULL;
 	}
 	memcpy(&image->uuid, &toc_entry->uuid, sizeof(struct uuid));

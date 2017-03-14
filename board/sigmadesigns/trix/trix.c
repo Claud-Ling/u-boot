@@ -212,7 +212,7 @@ int board_late_init(void)
 	}
 #endif
 	if(is_console_off())
-		gd->flags |= GD_FLG_DISABLE_CONSOLE;    /*disable console*/	
+		gd->flags |= GD_FLG_DISABLE_CONSOLE;    /*disable console*/
 	return 0;
 }
 #endif

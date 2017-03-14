@@ -17,8 +17,8 @@ static u32 memtell (int id)
 	/* only probe activated umac */
 	if (umac_is_activated(id)) {
 		unsigned long base = umac_get_addr(id);
-		bs = get_ram_size((long*)base, MAX_MEM_BANK_SIZE);
-		trace("find 0x%08x bytes memory at addr 0x%08x\n", bs, base);
+		bs = (u32)get_ram_size((long*)base, MAX_MEM_BANK_SIZE);
+		trace("find 0x%08x bytes memory at addr 0x%lx\n", bs, base);
 	}
 	return bs;
 }
