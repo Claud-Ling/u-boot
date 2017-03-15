@@ -248,7 +248,7 @@ struct fw_vol *fw_get_dep_vol(struct fw_ctx *ctx, struct fw_vol *vol)
 	 *TODO: How about have multi depend vols
 	 */
 	nr = find_first_bit((unsigned long *)&vol->info->dep_vol,
-							sizeof(vol->info->dep_vol));
+							sizeof(vol->info->dep_vol)*8);
 
 	return fw_get_vol_by_id(ctx, nr);
 }

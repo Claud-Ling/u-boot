@@ -161,7 +161,7 @@ int32_t __vchain_get_parent_id(struct fw_ctx *ctx, int32_t child)
 		if (local_test_bit(child, (unsigned long *)&vc->child) == 0)
 			continue;
 
-		parent = find_first_bit((unsigned long *)&vc->parent, sizeof(vc->parent));
+		parent = find_first_bit((unsigned long *)&vc->parent, (sizeof(vc->parent)*8));
 		break;
 	}
 

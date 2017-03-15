@@ -114,7 +114,8 @@ static int is_vizio_signed_img(void)
 	ret = otp_get_rsa_pub_key(key, sizeof(key));
 	if (ret != 0) {
 		//printf("failed to get rsa pub key from otp, ret=%d\n", ret);
-		return ret;
+		/* Fail, treat as other case */
+		return 0;
 	}
 
 	/*Vizio should inform us if they have new key...*/

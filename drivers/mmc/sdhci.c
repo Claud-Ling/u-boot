@@ -454,7 +454,8 @@ static void sdhci_set_ios(struct mmc *mmc)
 #elif defined(CONFIG_SIGMA_SOC_SX8)
 			writel( (readl(0xfb00a400) & ~0x1fff) | 0x1500, 0xfb00a400 );
 #elif defined(CONFIG_SIGMA_SOC_UNION)
-			writel( (readl(0xfb00a400) & ~0x1fff) | 0x1600, 0xfb00a400 ); /*TODO*/
+			/*Update to TAP out delay to 0x7, need wait hardware check IO character */
+			writel( (readl(0xfb00a400) & ~0x1fff) | 0x1700, 0xfb00a400 ); /*TODO*/
 #endif
 		} else {
 			ctrl2 &= ~SDHCI_CTRL_UHS_MASK;

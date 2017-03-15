@@ -9,7 +9,8 @@
  * 2 of the License, or (at your option) any later version.
  */
 
-#define BITS_PER_BYTE		8
+#define BITS_PER_BYTE		(8)
+#define BITS_PER_INT		(32)
 
 #ifdef BITS_PER_LONG
 #undef BITS_PER_LONG
@@ -20,174 +21,67 @@
 #define BIT_MASK(nr)		(1UL << ((nr) % BITS_PER_LONG))
 #define BIT_WORD(nr)		((nr) / BITS_PER_LONG)
 
+#define BIT_INT_MASK(nr)	(1UL<< ((nr) % BITS_PER_INT))
+#define BIT_INT(nr)		((nr)/ BITS_PER_INT)
+
 #define BITOP_WORD(nr)		((nr) / BITS_PER_LONG)
 
 #define __ffs(x) (__builtin_ffs(x) - 1)
 #define ffz(x)  __ffs(~(x))
 
 /*
- * Find the next set bit in a memory region.
- */
-unsigned long find_next_bit(const unsigned long *addr, unsigned long size,
-			    unsigned long offset)
-{
-	const unsigned long *p = addr + BITOP_WORD(offset);
-	unsigned long result = offset & ~(BITS_PER_LONG-1);
-	unsigned long tmp;
-
-	if (offset >= size)
-		return size;
-	size -= result;
-	offset %= BITS_PER_LONG;
-	if (offset) {
-		tmp = *(p++);
-		tmp &= (~0UL << offset);
-		if (size < BITS_PER_LONG)
-			goto found_first;
-		if (tmp)
-			goto found_middle;
-		size -= BITS_PER_LONG;
-		result += BITS_PER_LONG;
-	}
-	while (size & ~(BITS_PER_LONG-1)) {
-		if ((tmp = *(p++)))
-			goto found_middle;
-		result += BITS_PER_LONG;
-		size -= BITS_PER_LONG;
-	}
-	if (!size)
-		return result;
-	tmp = *p;
-
-found_first:
-	tmp &= (~0UL >> (BITS_PER_LONG - size));
-	if (tmp == 0UL)		/* Are any bits set? */
-		return result + size;	/* Nope. */
-found_middle:
-	return result + __ffs(tmp);
-}
-
-/*
- * This implementation of find_{first,next}_zero_bit was stolen from
- * Linus' asm-alpha/bitops.h.
- */
-unsigned long find_next_zero_bit(const unsigned long *addr, unsigned long size,
-				 unsigned long offset)
-{
-	const unsigned long *p = addr + BITOP_WORD(offset);
-	unsigned long result = offset & ~(BITS_PER_LONG-1);
-	unsigned long tmp;
-
-	if (offset >= size)
-		return size;
-	size -= result;
-	offset %= BITS_PER_LONG;
-	if (offset) {
-		tmp = *(p++);
-		tmp |= ~0UL >> (BITS_PER_LONG - offset);
-		if (size < BITS_PER_LONG)
-			goto found_first;
-		if (~tmp)
-			goto found_middle;
-		size -= BITS_PER_LONG;
-		result += BITS_PER_LONG;
-	}
-	while (size & ~(BITS_PER_LONG-1)) {
-		if (~(tmp = *(p++)))
-			goto found_middle;
-		result += BITS_PER_LONG;
-		size -= BITS_PER_LONG;
-	}
-	if (!size)
-		return result;
-	tmp = *p;
-
-found_first:
-	tmp |= ~0UL << size;
-	if (tmp == ~0UL)	/* Are any bits zero? */
-		return result + size;	/* Nope. */
-found_middle:
-	return result + ffz(tmp);
-}
-
-/*
  * Find the first set bit in a memory region.
  */
 unsigned long find_first_bit(const unsigned long *addr, unsigned long size)
 {
-	const unsigned long *p = addr;
+	const unsigned int *p = (const unsigned int *)addr;
 	unsigned long result = 0;
-	unsigned long tmp;
+	unsigned int tmp;
 
-	while (size & ~(BITS_PER_LONG-1)) {
+	while (size & ~(BITS_PER_INT-1)) {
 		if ((tmp = *(p++)))
 			goto found;
-		result += BITS_PER_LONG;
-		size -= BITS_PER_LONG;
+		result += BITS_PER_INT;
+		size -= BITS_PER_INT;
 	}
 	if (!size)
 		return result;
 
-	tmp = (*p) & (~0UL >> (BITS_PER_LONG - size));
+	tmp = (*p) & (~0UL >> (BITS_PER_INT - size));
 	if (tmp == 0UL)		/* Are any bits set? */
 		return result + size;	/* Nope. */
 found:
 	return result + __ffs(tmp);
 }
 
-/*
- * Find the first cleared bit in a memory region.
- */
-unsigned long find_first_zero_bit(const unsigned long *addr, unsigned long size)
-{
-	const unsigned long *p = addr;
-	unsigned long result = 0;
-	unsigned long tmp;
-
-	while (size & ~(BITS_PER_LONG-1)) {
-		if (~(tmp = *(p++)))
-			goto found;
-		result += BITS_PER_LONG;
-		size -= BITS_PER_LONG;
-	}
-	if (!size)
-		return result;
-
-	tmp = (*p) | (~0UL << size);
-	if (tmp == ~0UL)	/* Are any bits zero? */
-		return result + size;	/* Nope. */
-found:
-	return result + ffz(tmp);
-}
-
 void local_set_bit(int nr, volatile unsigned long *addr)
 {
-	unsigned long mask = BIT_MASK(nr);
-	unsigned long *p = ((unsigned long *)addr) + BIT_WORD(nr);
+	unsigned int mask = BIT_INT_MASK(nr);
+	unsigned int *p = ((unsigned int *)addr) + BIT_INT(nr);
 	*p  |= mask;
 }
 
 void local_clear_bit(int nr, volatile unsigned long *addr)
 {
-	unsigned long mask = BIT_MASK(nr);
-	unsigned long *p = ((unsigned long *)addr) + BIT_WORD(nr);
+	unsigned int mask = BIT_INT_MASK(nr);
+	unsigned int *p = ((unsigned int *)addr) + BIT_INT(nr);
 
 	*p &= ~mask;
 }
 
 void local_change_bit(int nr, volatile unsigned long *addr)
 {
-	unsigned long mask = BIT_MASK(nr);
-	unsigned long *p = ((unsigned long *)addr) + BIT_WORD(nr);
+	unsigned int mask = BIT_INT_MASK(nr);
+	unsigned int *p = ((unsigned int *)addr) + BIT_INT(nr);
 
 	*p ^= mask;
 }
 
 int local_test_and_set_bit(int nr, volatile unsigned long *addr)
 {
-	unsigned long mask = BIT_MASK(nr);
-	unsigned long *p = ((unsigned long *)addr) + BIT_WORD(nr);
-	unsigned long old;
+	unsigned int mask = BIT_INT_MASK(nr);
+	unsigned int *p = ((unsigned int *)addr) + BIT_INT(nr);
+	unsigned int old;
 
 	old = *p;
 	*p = old | mask;
@@ -197,9 +91,9 @@ int local_test_and_set_bit(int nr, volatile unsigned long *addr)
 
 int local_test_and_clear_bit(int nr, volatile unsigned long *addr)
 {
-	unsigned long mask = BIT_MASK(nr);
-	unsigned long *p = ((unsigned long *)addr) + BIT_WORD(nr);
-	unsigned long old;
+	unsigned int  mask = BIT_INT_MASK(nr);
+	unsigned int *p = ((unsigned int *)addr) + BIT_INT(nr);
+	unsigned int old;
 
 	old = *p;
 	*p = old & ~mask;
@@ -209,9 +103,9 @@ int local_test_and_clear_bit(int nr, volatile unsigned long *addr)
 
 int local_test_and_change_bit(int nr, volatile unsigned long *addr)
 {
-	unsigned long mask = BIT_MASK(nr);
-	unsigned long *p = ((unsigned long *)addr) + BIT_WORD(nr);
-	unsigned long old;
+	unsigned int mask = BIT_INT_MASK(nr);
+	unsigned int *p = ((unsigned int *)addr) + BIT_INT(nr);
+	unsigned int old;
 
 	old = *p;
 	*p = old ^ mask;
@@ -221,6 +115,7 @@ int local_test_and_change_bit(int nr, volatile unsigned long *addr)
 
 int local_test_bit(int nr, const volatile unsigned long *addr)
 {
-	return 1UL & (addr[BIT_WORD(nr)] >> (nr & (BITS_PER_LONG-1)));
+	const volatile unsigned int *data = (const volatile unsigned int *)addr;
+	return 1UL & (data[BIT_INT(nr)] >> (nr & (BITS_PER_INT-1)));
 }
 

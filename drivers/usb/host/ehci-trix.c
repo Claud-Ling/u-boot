@@ -114,14 +114,14 @@ void usb2_power_init(void)
 	/* Set GPIO16 functionally as GPIO */
 	MWriteRegByte(0xf500ee23, 0x00, 0x70);
 	MWriteRegHWord(0xfb005540, 0x0001, 0x0003);
-	
+
 	/* Set GPIO16 output high */
 	MWriteRegHWord(0xfb005542, 0x0001, 0x0001);
 
 	/* Set GPIO6 functionally as GPIO */
 	MWriteRegByte(0xf500ee1e, 0x00, 0x70);
 	MWriteRegHWord(0xfb005500, 0x0100, 0x0300);
-		
+
 	/* Set GPIO6 output high */
 	MWriteRegHWord(0xfb005502, 0x0040, 0x0040);
 
@@ -168,22 +168,42 @@ void usb2_power_init(void)
 	/*Set GPIO4 functionally as GPIO*/
 	MWriteRegByte(0xf500ee20, 0x00, 0x07);
 	MWriteRegHWord(0xfb005500, 0x0100, 0x0300);
-		
+
 	/* Set GPIO4 output high */
 	MWriteRegHWord(0xfb005502, 0x0010, 0x0010);
-	
+
 
 	/*USB2 Power*/
 	/*Set GPIO6 functionally as GPIO*/
 	MWriteRegByte(0xf500ee21, 0x00, 0x07);
 	MWriteRegHWord(0xfb005500, 0x1000, 0x3000);
-		
+
 	/* Set GPIO6 output high */
 	MWriteRegHWord(0xfb005502, 0x0040, 0x0040);
 
 	usb_phy_fixup();
 #elif defined (CONFIG_SIGMA_SOC_UNION)
-	printf("TODO:   EHCI pinshare for union...\n");
+	/*USB1 Power*/
+	/*Set GPIO4 work as USB1_OC
+	 *GPIO5 work in GPIO mode
+	 */
+	MWriteRegByte(0xf500ee20, 0x62, 0x77);
+
+	/* Set GPIO5 output high */
+	MWriteRegHWord(0xfb005500, 0x0400, 0x0c00);
+	MWriteRegHWord(0xfb005502, 0x0020, 0x0020);
+
+
+	/*USB2 Power*/
+	/*Set GPIO6 work as USB1_OC
+	 *GPIO7 work in GPIO mode
+	 */
+	MWriteRegByte(0xf500ee21, 0x62, 0x77);
+
+	/* Set GPIO7 output high */
+	MWriteRegHWord(0xfb005500, 0x4000, 0xc000);
+	MWriteRegHWord(0xfb005502, 0x0080, 0x0080);
+
 #else
 #error "Unknow SOC type"
 #endif
