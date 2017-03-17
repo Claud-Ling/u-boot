@@ -105,6 +105,11 @@ int board_eth_init(bd_t *bis)
 						//[4]GBE_TXD2_OE
 						//[5]GBE_TXD3_OE
 						//[12]GBE_MDC_OE
+#elif defined(CONFIG_SIGMA_SOC_UNION)
+	WriteRegByte(0xf500ea06, 0x7f);	//GBE_TXEN
+	WriteRegByte(0xf500ea07, 0x7f);	//GBE_TXD0
+	WriteRegByte(0xf500ea08, 0x7f);	//GBE_TXD1
+	WriteRegByte(0xf500ea0c, 0x7f);	//GBE_MDC
 #endif
 
 	/* Initialize Designware Ethernet Controller */
