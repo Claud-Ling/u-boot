@@ -11,7 +11,7 @@
  * Flattened device tree support
  */
 #define CONFIG_OF_LIBFDT
-
+#define CONFIG_OF_BOARD_SETUP
 
 /*
  * Ethernet PHY support.

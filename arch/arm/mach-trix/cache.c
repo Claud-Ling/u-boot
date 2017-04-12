@@ -698,7 +698,7 @@ void v7_outer_cache_disable(void)
 #ifndef CONFIG_SYS_DCACHE_OFF
 void enable_caches(void)
 {
-	/* Enable D-cache. I-cache is already enabled in start.S */
+	icache_enable();
 	dcache_enable();
 }
 #endif

@@ -22,3 +22,4 @@
 #
 
 obj-y += trix.o
+obj-$(CONFIG_OF_BOARD_SETUP) += trix_fdt.o
