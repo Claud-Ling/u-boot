@@ -22,6 +22,7 @@
 #
 
 obj-y += $(CPU)/lowlevel_init.o
+obj-y += $(CPU)/arm64-mmu.o
 
 obj-$(CONFIG_TEST_S2RAM) += $(CPU)/s2ramtest.o $(CPU)/proc.o $(CPU)/sleep.o
 
