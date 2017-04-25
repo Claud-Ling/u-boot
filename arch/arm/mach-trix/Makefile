@@ -28,12 +28,13 @@ include $(src)/$(CPU)/arch.mk
 
 header-y += $(CPU)/
 
-obj-y += timer.o reset.o cache.o otp.o smc-stub.o umac.o
+obj-y += timer.o reset.o cache.o otp_ree.o smc-stub.o umac.o
 
 obj-$(CONFIG_TEST_S2RAM) += suspend.o
 obj-$(CONFIG_S2RAM_CHECKSUM) += crc32.o s2ramcrc.o
 
 obj-$(CONFIG_DTV_SMC) += smc-common.o
+obj-$(CONFIG_SIGMA_TEE_OPTEE) += tee_smccc.o
 
 obj-$(CONFIG_BOOTPARAM) += boot-common.o
 

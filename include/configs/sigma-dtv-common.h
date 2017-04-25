@@ -177,6 +177,15 @@
 #endif
 
 /*
+ * OTP constants
+ */
+#ifdef CONFIG_SIGMA_SOC_SX8
+# define CONFIG_FUSE_OFS_RSA_PUB_KEY	0xD50
+#else
+# define CONFIG_FUSE_OFS_RSA_PUB_KEY	0x290
+#endif
+
+/*
  * console
  */
 #define CONFIG_BOOTDELAY	        0	/* autoboot after 5 seconds	*/
@@ -357,7 +366,12 @@
 /* secure monitor dependent */
 #if defined(CONFIG_SECURE_MONITOR)
 #   define CONFIG_DTV_SMC
-#   define CONFIG_CMD_ARMORSHELL	/* armor		*/
+#   if defined(CONFIG_SIGMA_TEE_ARMOR)
+#     define CONFIG_CMD_ARMORSHELL	/* armor		*/
+#   endif
+#   if defined(CONFIG_SIGMA_TEE_OPTEE)
+#     define CONFIG_CMD_TEE		/* tee */
+#   endif
 #endif
 
 /* test s2ram */

@@ -14,6 +14,7 @@ config SIGMA_SOC_UXLB
 config SIGMA_SOC_SX6
 	depends on ARCH_SIGMA_TRIX_ARM
 	bool "SX6 chipset"
+	select SIGMA_TURING_IN_PLF_DCS
 
 config SIGMA_SOC_SX7
 	depends on ARCH_SIGMA_TRIX_ARM
@@ -62,11 +63,44 @@ config SIGMA_TRIX_GICV3
 
 endchoice
 
+choice
+	prompt "Sigma Designs TEE"
+	depends on SECURE_MONITOR
+
+config SIGMA_TEE_ARMOR
+	bool "armor"
+	depends on ARCH_SIGMA_TRIX_ARM
+	help
+	  armor for cortex-a9 project
+
+config SIGMA_TEE_OPTEE
+	bool "OPTEE"
+	depends on ARCH_SIGMA_TRIX_ARM64
+	help
+	  OP-TEE for ARMv8-A projects
+
+endchoice
+
 config SIGMA_NR_UMACS
 	int "Set counts of UMAC controller"
 	default 2 if SIGMA_SOC_SX6 || SIGMA_SOC_UXLB
 	default 3 if SIGMA_SOC_SX7 || SIGMA_SOC_SX8
 	default 1
+
+config SIGMA_PST_VER_1_X
+	bool "PMAN Secure Table V1.X"
+	depends on ARCH_SIGMA_TRIX_ARM64
+	default y
+	help
+	  PMAN Secure Table version 1.x, in accordance with ATF.
+	  if unsure say n.
+
+config SIGMA_TURING_IN_PLF_DCS
+	bool
+	help
+	  TURING target belongs to PLF DCS, i.e. SX6.
+	  While not for SX7/SX8/UNION1.
+	  if unsure say n.
 
 menu "Sigma DTV features"
 

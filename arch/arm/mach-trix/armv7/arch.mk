@@ -25,4 +25,6 @@ obj-y += $(CPU)/lowlevel_init.o
 
 obj-$(CONFIG_TEST_S2RAM) += $(CPU)/s2ramtest.o $(CPU)/proc-v7.o $(CPU)/sleep.o
 
+obj-$(CONFIG_SIGMA_TEE_ARMOR) += $(CPU)/tee_armor.o
+
 $(obj)/$(CPU)/s2ramtest.o : $(obj)/asm-offsets.h

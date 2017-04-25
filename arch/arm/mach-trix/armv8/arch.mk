@@ -23,8 +23,10 @@
 
 obj-y += $(CPU)/lowlevel_init.o
 obj-y += $(CPU)/arm64-mmu.o
+obj-y += $(CPU)/smccc-call.o
 
 obj-$(CONFIG_TEST_S2RAM) += $(CPU)/s2ramtest.o $(CPU)/proc.o $(CPU)/sleep.o
 
 $(obj)/$(CPU)/s2ramtest.o : $(obj)/asm-offsets.h
+$(obj)/$(CPU)/smccc-call.o : $(obj)/asm-offsets.h
 

@@ -1,3 +1,7 @@
+/*
+ * This file is deprecated. Tony, 2017/4/25
+ */
+
 #include <common.h>
 #include <errno.h>
 #include <linux/compat.h>
@@ -61,7 +65,7 @@ static int read_fuse(const uint32_t offset, uint32_t *pval)
 {
 	BUG_ON(pval == NULL);
 	if (!get_security_state())
-		return secure_otp_get_fuse_mirror(offset, pval);
+		return secure_otp_get_fuse_mirror(offset, pval, NULL);
 	*pval = OTP_READL(OTP_FUSE_BASE + offset);
 	return 0;
 }
@@ -127,7 +131,7 @@ static uint32_t get_fuse_array(uint32_t ofs, uint32_t *buf, uint32_t nbytes)
 
 	BUG_ON(buf == NULL);
 	if (!get_security_state())
-		return secure_otp_get_fuse_array(ofs, buf, nbytes);
+		return secure_otp_get_fuse_array(ofs, buf, nbytes, NULL);
 
 	for(i=0,j=0; i<(nbytes>>2); i+=4,j+=16) {
 		read_fuse_data(ofs+j, 1, buf+i);
@@ -227,7 +231,7 @@ static int read_fuse(const uint32_t offset, uint32_t *pval)
 {
 	BUG_ON(pval == NULL);
 	if (!get_security_state())
-		return secure_otp_get_fuse_mirror(offset, pval);
+		return secure_otp_get_fuse_mirror(offset, pval, NULL);
 
 	*pval = OTP_READL(OTP_FUSE_BASE + offset);
 	return 0;
@@ -285,7 +289,7 @@ static uint32_t get_fuse_array(uint32_t ofs, uint32_t *buf, uint32_t nbytes)
 
 	BUG_ON(buf == NULL);
 	if (!get_security_state())
-		return secure_otp_get_fuse_array(ofs, buf, nbytes);
+		return secure_otp_get_fuse_array(ofs, buf, nbytes, NULL);
 
 	for(i=0,j=0; i<(nbytes>>2); i++,j+=4) {
 		read_fuse_data(ofs+j, buf+i);

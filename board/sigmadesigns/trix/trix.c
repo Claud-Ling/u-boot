@@ -174,6 +174,12 @@ static int is_mconfig_on(void)
 
 int board_late_init(void)
 {
+	/*
+	 * probe sip services
+	 * this must be done before any request for secure sevice
+	 */
+	secure_svc_probe();
+
 #ifdef CONFIG_CMD_LOADCFG
 	run_command("loadcfg", 0);
 #endif

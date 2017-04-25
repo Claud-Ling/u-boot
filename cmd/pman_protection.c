@@ -27,21 +27,26 @@
 
 #define MALLOC(n) malloc(n)
 #define FREE(p) free(p)
-#define CRC32(seed, ptr, sz) crc32(seed, ptr, sz)
+#define CRC32(ptr, sz) crc32(0, (const unsigned char*)(ptr), sz)
 
 #define read_uint32(pa) read_reg(2, pa, 0)
 #define write_uint32(pa, v) write_reg(2, pa, 0, v, 0) /*for some reason, write_reg uses mask in opposite way*/
 
-#if defined (CONFIG_SIGMA_SOC_SX6) /*SX6*/
 # define PMAN_SEC0_base 0x15005000
+#if CONFIG_SIGMA_NR_UMACS > 1
 # define PMAN_SEC1_base 0x15008000
-#else /*SX7...*/
-# define PMAN_SEC0_base 0x15005000
-# define PMAN_SEC1_base 0x15008000
+#endif
+#if CONFIG_SIGMA_NR_UMACS > 2
 # define PMAN_SEC2_base 0x15036000
 #endif
+#if CONFIG_SIGMA_NR_UMACS > 3
+# error "not support UMACS >= 3 yet!"
+#endif
 
-#define CFG_MAX_PMAN_REGIONS    (3 * 32)
+#define PMAN_SEC_GROUP_MAX	CONFIG_SIGMA_NR_UMACS
+#define PMAN_REGION_MAX		32
+
+#define PTAB_RGN_MAX    (PMAN_SEC_GROUP_MAX * PMAN_REGION_MAX)
 #define PMAN2PHYADDR(a)	((a) << 12)
 #define PHY2PMANADDR(a)	(((a) >> 12) & ((1<<20) - 1))	/*in 4kB*/
 
@@ -90,9 +95,7 @@
 	write_uint32(_base + 0x10c + 0x20 * i, (e)->attr); 	/*attr*/		\
 }while(0)
 
-#define PTAB_LENGTH(tab) ((tab)->length + sizeof(struct ptbl_hdr))
-
-struct ptab_rgn_body {
+struct ptbl_rgn_body {
 	union {
 		struct { __extension__ uint32_t
 			id: 3		/*pman id*/,
@@ -106,14 +109,177 @@ struct ptab_rgn_body {
 	uint32_t attr;	/*attributes*/
 };
 
+#ifdef CONFIG_SIGMA_PST_VER_1_X
+
+/*
+ * PMAN TABLE V1.X DEFINITION
+ *
+--------+-----------------------+
+        |  3  |  2  |  1  |  0  |
+--------+-----+-----------------+------------
+        |     |      magic      |
+        | ver +-----+-----+-----+03~00H
+   H    |     | 'T' | 'S' | 'P' |
+   E    +-----+-----+-----------+------------
+   A    |    dlen   |   tlen    |07~04H
+   D    +-----------+-----------+------------
+   E    |          dcrc         |0B~08H
+   R    +-----------------------+------------
+        |          hcrc         |0F~0CH
+----+---+-----------------------+------------
+    | r |          lsb          |13~10H
+ R  | g |          size         |17~14H
+    | n |          sec          |1B~18H
+ E  | 0 |          attr         |1F~1CH
+    +---+-----------------------+------------
+ G  | r |          lsb          |23~20H
+    | g |          size         |27~24H
+ I  | n |          sec          |2B~28H
+    | 1 |          attr         |2F~2CH
+ O  +---+-----------------------+------------
+    | . |          ...          |...
+ N  +---+-----------------------+------------
+    | r |          lsb          |10H*N+13~10H
+ S  | g |          size         |10H*N+17~14H
+    | n |          sec          |10H*N+1B~18H
+    | N |          attr         |10H*N+1F~1CH
+----+---+-----------------------+------------
+ *
+ *
+ */
+#define PTAB_MAGIC		"PST"
+
+#define VERSION_MAJOR		1
+#define VERSION_MINOR		0
+#define PST_VERSION(a,b)	((((a)&0xf)<<4) | ((b)&0xf))
+#define PST_VERSION_CODE	PST_VERSION(VERSION_MAJOR, VERSION_MINOR)
+
+struct ptbl_hdr{
+	char magic[3];		/*"PST"*/
+	char ver;		/*version code*/
+	uint16_t tlen;		/*table length, in bytes*/
+	uint16_t dlen;		/*data length (region area), in bytes*/
+	uint32_t dcrc;		/*checksum of regions*/
+	uint32_t hcrc;		/*checksum of header*/
+} __attribute__((packed));
+
+#define PTAB_HDR_TRACE(h) do{			\
+	trace_info("PMAN Secure Table (v1.x):\n"\
+		"magic: %02x %02x %02x\n"	\
+		"ver:   0x%02x\n"		\
+		"tlen:  0x%04x\n"		\
+		"dlen:  0x%04x\n"		\
+		"dcrc:  0x%08x\n"		\
+		"hcrc:  0x%08x\n",		\
+		(h)->magic[0], (h)->magic[1],	\
+		(h)->magic[2], (h)->ver,	\
+		(h)->tlen, (h)->dlen,		\
+		(h)->dcrc, (h)->hcrc);		\
+}while(0)
+
+/*
+ * total of regions described in the table
+ */
+#define PTAB_TOTAL_REGIONS(t) ((t)->dlen / sizeof(struct ptbl_rgn_body))
+
+/*
+ * PTAB length
+ */
+#define PTAB_LENGTH(tab) ((tab)->dlen + sizeof(struct ptbl_hdr))
+
+#else /* ifdef CONFIG_SIGMA_PST_VER_1_X */
+
+/*
+ * PMAN TABLE V0.X DEFINITION
+ *
+--------+-----------------------+
+        |  3  |  2  |  1  |  0  |
+--------+-----------------------+------------
+        |        magic          |
+   H    +-----+-----+-----+-----+
+   E    | 'B' | 'A' | 'T' | 'P' |03~00H
+   A    +-----+-----+-----+-----+------------
+   D    | '!' | 'N' | 'G' | 'R' |07~04H
+   E    +-----------------------+------------
+   R    |       length          |0B~08H
+        +-----------------------+------------
+        |       crc32           |0F~0CH
+----+---+-----------------------+------------
+    | r |       lsb             |13~10H
+ R  | g |       size            |17~14H
+    | n |       sec             |1B~18H
+ E  | 0 |       attr            |1F~1CH
+    +---+-----------------------+------------
+ G  | r |       lsb             |23~20H
+    | g |       size            |27~24H
+ I  | n |       sec             |2B~28H
+    | 1 |       attr            |2F~2CH
+ O  +---+-----------------------+------------
+    | . |       ...             |...
+ N  +---+-----------------------+------------
+    | r |       lsb             |10H*N+13~10H
+ S  | g |       size            |10H*N+17~14H
+    | n |       sec             |10H*N+1B~18H
+    | N |       attr            |10H*N+1F~1CH
+----+---+-----------------------+------------
+ *
+ *
+ */
+
+#define PTAB_MAGIC		"PTABRGN!"
+
 struct ptbl_hdr{
 	char magic[8];		/*"PTABRGN!"*/
 	int32_t length;		/*total length of region area, in bytes*/
 	uint32_t crc;		/*checksum of region payload*/
-	struct ptab_rgn_body rgns[0];
-};
+} __attribute__((packed));
+
+#define PTAB_HDR_TRACE(h) do{			\
+	trace_info("PMAN Secure Table (v0.x):\n"\
+		"magic: %02x %02x %02x %02x "	\
+		"%02x %02x %02x %02x\n"		\
+		"len:  0x%08x\n"		\
+		"crc:  0x%08x\n",		\
+		(h)->magic[0], (h)->magic[1],	\
+		(h)->magic[2], (h)->magic[3],	\
+		(h)->magic[4], (h)->magic[5],	\
+		(h)->magic[6], (h)->magic[7],	\
+		(h)->length, (h)->crc);		\
+}while(0)
+
+/*
+ * total of regions described in the table
+ */
+#define PTAB_TOTAL_REGIONS(t) ((t)->length / sizeof(struct ptbl_rgn_body))
+
+/*
+ * PTAB length
+ */
+#define PTAB_LENGTH(tab) ((tab)->length + sizeof(struct ptbl_hdr))
+
+#endif /* ifdef CONFIG_SIGMA_PST_VER_1_X */
+
+/*
+ * PTAB max length
+ */
+#define PTAB_MAX_LENGTH	(sizeof(struct ptbl_hdr) + sizeof(struct ptbl_rgn_body) * PTAB_RGN_MAX)
+
+/*
+ * pman table header length
+ */
+#define PTAB_HDR_LENGTH sizeof(struct ptbl_hdr)
+
+/*
+ * i-th region body in specified pman table
+ */
+#define PTAB_REGION(t, i) ((struct ptbl_rgn_body*)((t) + 1) + (i))
 
 static struct ptbl_hdr * pman_tbl = NULL;
+
+/*
+ * PMAN secure table payload length
+ */
+static uint32_t pst_dlen = 0;
 
 /*
  * pman security base address
@@ -140,46 +306,49 @@ static uint32_t pman_sec_base(int id)
 
 static int pman_compr_regions(const void* A, const void* B)
 {
-	struct ptab_rgn_body *rgnA = (struct ptab_rgn_body*)A;
-	struct ptab_rgn_body *rgnB = (struct ptab_rgn_body*)B;
+	struct ptbl_rgn_body *rgnA = (struct ptbl_rgn_body*)A;
+	struct ptbl_rgn_body *rgnB = (struct ptbl_rgn_body*)B;
 	if (rgnA->lsb.bits.id != rgnB->lsb.bits.id)
 		return ((int)rgnA->lsb.bits.id - (int)rgnB->lsb.bits.id);
-	else
+	else if (rgnA->lsb.bits.start != rgnB->lsb.bits.start)
 		return ((int)rgnA->lsb.bits.start - (int)rgnB->lsb.bits.start);
+	else
+		return ((int)rgnA->size - (int)rgnB->size);
 }
 
-static int pman_add_one_region(struct ptbl_hdr* tbl, struct ptab_rgn_body* rgn)
+static int pman_add_one_region(void* body, size_t ofs, struct ptbl_rgn_body* prgn)
 {
-	int i, n = tbl->length / sizeof(struct ptab_rgn_body);
+	int i, n;
+	struct ptbl_rgn_body *rgns = NULL;
 
-	if (SANITY_CHECK_REGION(rgn)) {
+	assert(body != NULL && !(ofs % sizeof(struct ptbl_rgn_body)));
+	if (SANITY_CHECK_REGION(prgn)) {
 		printf("error: invalid region!\n");
-		PTAB_REGION_TRACE(rgn);
+		PTAB_REGION_TRACE(prgn);
 		return -1;
 	}
 
-	if (n > CFG_MAX_PMAN_REGIONS - 1) {
+	rgns = (struct ptbl_rgn_body*)body;
+	n = ofs / sizeof(struct ptbl_rgn_body);
+	if (n > PTAB_RGN_MAX - 1) {
 		printf("error: small pman table!!\n");
 		return -2;
 	}
 
-	for (i=n; i>0; i--) {
-		if (pman_compr_regions(rgn, &tbl->rgns[i-1]) >= 0)
+	/* in ascending order */
+	for (i = 0; i < n; i++) {
+		if (pman_compr_regions(prgn, rgns + i) < 0)
 			break;
 	}
 
-	if (n - i > 0)
-		memmove(&tbl->rgns[i+1], &tbl->rgns[i], (n - i) * sizeof(struct ptab_rgn_body));
+	if (n > i)
+		memmove(rgns + i + 1, rgns + i, (n - i) * sizeof(struct ptbl_rgn_body));
 
-	if (i < 0)
-		i = 0;
-
-	memcpy(&tbl->rgns[i], rgn, sizeof(struct ptab_rgn_body));
-	tbl->length += sizeof(struct ptab_rgn_body);
-	return i;
+	memcpy(rgns + i, prgn, sizeof(struct ptbl_rgn_body));
+	return sizeof(struct ptbl_rgn_body);
 }
 
-static int setup_pman_by_armor(struct ptbl_hdr* tbl)
+static int setup_pman_in_tee(struct ptbl_hdr* tbl)
 {
 #define TO_PHY_ADDR(v) ((uint32_t)(uintptr_t)(v)) /*use 32-bit for phyaddr*/
 	flush_cache((ulong)tbl, PTAB_LENGTH(tbl));
@@ -237,8 +406,8 @@ static int pman_tbl_new_entry(char* str)
 {
 	int n, tid, taddr;
 	char *p = str; /*<id> <addr> <sz> <sec> <attr>*/
-	struct ptab_rgn_body rgn;
-	memset(&rgn, 0, sizeof(struct ptab_rgn_body));
+	struct ptbl_rgn_body rgn;
+	memset(&rgn, 0, sizeof(struct ptbl_rgn_body));
 	n = pman_get_params(p, &tid, &taddr, &rgn.size, &rgn.sec, &rgn.attr);
 	if (n != 5) {
 		printf("incomplete entry: '%s'\n", str);
@@ -255,22 +424,45 @@ static int pman_tbl_new_entry(char* str)
 	PTAB_REGION_TRACE(&rgn);
 
 	if (!pman_tbl) {
-		pman_tbl = (struct ptbl_hdr*)MALLOC(sizeof(struct ptbl_hdr) + CFG_MAX_PMAN_REGIONS * sizeof(struct ptab_rgn_body));
+		pman_tbl = (struct ptbl_hdr*)MALLOC(PTAB_MAX_LENGTH);
 		if (pman_tbl == NULL) {
 			printf("error: failed to create pman tbl!! can't parse '%s'\n", str);
 			return 3;
 		}
 
+		pst_dlen = 0; /* reset */
 		memset(pman_tbl, 0, sizeof(struct ptbl_hdr));
-		memcpy(pman_tbl->magic, "PTABRGN!", 8);
 	}
 
-	if (pman_add_one_region(pman_tbl, &rgn) < 0) {
+	if ((n = pman_add_one_region(pman_tbl + 1, pst_dlen, &rgn)) < 0) {
 		printf("error: failed to add region '%s'\n", str);
 		return 4;
 	}
 
+	pst_dlen += n;
 	return 0;
+}
+
+/*
+ * setup pman secure table header
+ */
+static void pman_tbl_set_hdr(void)
+{
+	if (pman_tbl != NULL) {
+		memcpy(pman_tbl->magic, PTAB_MAGIC, sizeof(pman_tbl->magic));
+
+#ifdef CONFIG_SIGMA_PST_VER_1_X
+		pman_tbl->ver  = PST_VERSION_CODE;
+		pman_tbl->tlen = PTAB_MAX_LENGTH;
+		pman_tbl->dlen = pst_dlen;
+		pman_tbl->dcrc = CRC32(pman_tbl + 1, pst_dlen);
+		pman_tbl->hcrc = CRC32(pman_tbl, sizeof(struct ptbl_hdr));
+#else
+		pman_tbl->length = pst_dlen;
+		pman_tbl->crc = CRC32(pman_tbl + 1, pst_dlen);
+#endif
+		PTAB_HDR_TRACE(pman_tbl);
+	}
 }
 
 /*
@@ -280,23 +472,24 @@ static int pman_tbl_new_entry(char* str)
 static int pman_tbl_finish(void)
 {
 	if (pman_tbl != NULL) {
-		printf("setup pman tbl then...\n");
-		if (pman_tbl->length > 0) {
-			int i, j, id = -1, n = pman_tbl->length / sizeof(struct ptab_rgn_body);
+		if (pst_dlen > 0) {
 			if (!secure_get_security_state()) {
 				/*warn: program executes in NS world with bus protection on, has to use secure monitor*/
-				pman_tbl->crc = CRC32(-1, (void*)pman_tbl->rgns, pman_tbl->length);
-				printf("let armor set pman tbl: len=%#x, crc=%08x\n", pman_tbl->length, pman_tbl->crc);
+				pman_tbl_set_hdr();	/*setup header*/
+				printf("setup pman tbl in tee\n");
 				/*set up pman settings in another world*/
-				setup_pman_by_armor(pman_tbl);
+				setup_pman_in_tee(pman_tbl);
 			} else {
-				id = -1;
-				for (i=0,j=0; i<n; i++,j++) {
-					if (pman_tbl->rgns[i].lsb.bits.id != id) {
-						id = pman_tbl->rgns[i].lsb.bits.id;
+				struct ptbl_rgn_body* rgn = NULL;
+				int i, j, id = -1, n = pst_dlen / sizeof(struct ptbl_rgn_body);
+				printf("setup pman tbl in local\n");
+				for (i = 0, j = 0; i < n; i++, j++) {
+					rgn = PTAB_REGION(pman_tbl, i);
+					if (rgn->lsb.bits.id != id) {
+						id = rgn->lsb.bits.id;
 						j = 0;
 					}
-					PTAB_REGION_SET(j, &pman_tbl->rgns[i]);
+					PTAB_REGION_SET(j, rgn);
 				}
 			}
 		}

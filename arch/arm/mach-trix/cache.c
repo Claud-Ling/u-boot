@@ -685,12 +685,12 @@ void v7_outer_cache_inval_range(u32 start, u32 end)
 void v7_outer_cache_enable(void)
 {
 	if ( !secure_get_security_state() )
-		secure_l2x0_set_reg(l2cache_base, L2X0_CTRL, 0x0); //dusable l2cache anyway
+		secure_l2x0_set_reg(L2X0_CTRL, 0x0); //disable l2cache anyway
 }
 void v7_outer_cache_disable(void)
 {
 	if ( !secure_get_security_state() )
-		secure_l2x0_set_reg(l2cache_base, L2X0_CTRL, 0x0);
+		secure_l2x0_set_reg(L2X0_CTRL, 0x0);
 }
 
 #endif //elif defined(CONFIG_DTV_SMC)

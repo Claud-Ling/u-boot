@@ -48,6 +48,7 @@ obj-$(CONFIG_CMD_FIRMWARE_INFO) += libfw/
 obj-$(CONFIG_CMD_FIRMWARE_INFO) += fw.o
 obj-$(CONFIG_CMD_MPROBE) += mprobe.o
 obj-$(CONFIG_CMD_ARMORSHELL) += armor.o
+obj-$(CONFIG_CMD_TEE) += tee.o
 obj-$(CONFIG_CMD_KERNEL) += kernel.o
 obj-$(CONFIG_CMD_TIMESTAMP) += timestamp.o
 obj-$(CONFIG_CMD_FIPTOOL) += fiptool.o

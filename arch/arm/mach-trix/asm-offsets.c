@@ -15,6 +15,7 @@
 #include <common.h>
 #include <linux/kbuild.h>
 #include <asm/arch/umac.h>
+#include <asm/arch/arm-smccc.h>
 #include "s2ramctrl.h"
 #elif defined(__LINUX__)
 #include <linux/kernel.h>
@@ -35,6 +36,9 @@ int main(void)
 	DEFINE(S2RAM_LEN1_OFS, offsetof(struct s2ram_resume_frame, S2RAM_LEN1));
 	DEFINE(S2RAM_CRC1_OFS, offsetof(struct s2ram_resume_frame, S2RAM_CRC1));
 	DEFINE(S2RAM_CRC_OFS, offsetof(struct s2ram_resume_frame, S2RAM_CRC));
+	BLANK();
+	DEFINE(ARM_SMCCC_RES_X0_OFFS, offsetof(struct arm_smccc_res, a0));
+	DEFINE(ARM_SMCCC_RES_X2_OFFS, offsetof(struct arm_smccc_res, a2));
 	BLANK();
 #endif
 #if defined(__LINUX__)
