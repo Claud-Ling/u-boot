@@ -225,4 +225,5 @@ TEE_OPS("armor",
 	armor_set_l2x0_reg,
 	armor_mmio,
 	armor_fuse_read,
-	armor_get_rsa_key)
+	armor_get_rsa_key,
+	NULL)

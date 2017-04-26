@@ -31,6 +31,7 @@
   @file   sd_sip_svc.h
   @brief
 	This file decribes Sigma Designs defines SiP service calls.
+	Complies with SMC32 calling convention
 
   @author Tony He, tony_he@sigmadesigns.com
   @date   2017-04-16
@@ -58,8 +59,8 @@
 #define SD_SIP_UID_3			0x8664925d
 
 /* Sigma Designs SiP Service Calls version numbers */
-#define SD_SIP_SVC_VERSION_MAJOR	0x0
-#define SD_SIP_SVC_VERSION_MINOR	0x1
+#define SD_SIP_SVC_VERSION_MAJOR	0x1
+#define SD_SIP_SVC_VERSION_MINOR	0x0
 
 /* Number of Sigma Designs SiP Calls implemented */
 #define SD_COMMON_SIP_NUM_CALLS		9
@@ -98,9 +99,10 @@
  *
  * "Call" register usage:
  * a0	SD_SIP_FUNC_C_MEM_STATE
- * a1	32-bit physical pointer to an memory block
- * a2	Size in bytes of the memory block
- * a3-7	Not used
+ * a1	Upper 32bits of 64-bit physical address to an memory block
+ * a2	Lower 32bits of 64-bit physical address to an memory block
+ * a3	Size in bytes of the memory block
+ * a4-7	Not used
  *
  * "Return" register usage:
  * a0	SD_SIP_E_SUCCESS on success, or other error code otherwise
@@ -110,8 +112,8 @@
  *	bit[2]	- 1: non-secure writable, 0: non-secure non-writable
  *	bit[3]	- 1: secure executable,   0: secure non-executable
  *	bit[4]	- 1: ns executable,       0: non-secure non-executable
- * a2	Not used
- * a3-7	Preserved
+ * a2-3	Not used
+ * a4-7	Preserved
  */
 #define MEM_STATE_MASK		0x1f	/* mask */
 #define MEM_STATE_S_RW		1	/* secure r/w mem */
@@ -130,17 +132,18 @@
  * "Call" register usage:
  * a0	SD_SIP_FUNC_C_OTP_READ
  * a1	Fuse data offset value
- * a2	32-bit physical pointer to an memory block to load OTP data on return
- *	or set it to 0 to read back protection value only
- * a3	Size in bytes of OTP data to read
- * a4-7	Not used
+ * a2	Upper 32bits of 64-bit physical address to an memory block
+ * a3	Lower 32bits of 64-bit physical address to an memory block
+ *	Or set address to 0 to read back protection value only
+ * a4	Size in bytes of OTP data to read
+ * a5-7	Not used
  *
  * "Return" register usage:
  * a0	SD_SIP_E_SUCCESS on success, or other error code otherwise
  *	OTP data will be filled into the input memory block on success
  * a1	Protection value
- * a2	Not used
- * a3-7	Preserved
+ * a2-4	Not used
+ * a5-7	Preserved
  */
 #define SD_SIP_FUNC_C_OTP_READ		(SD_SIP_FUNC_C_BASE + 1)
 
@@ -149,22 +152,22 @@
 /**********************************************************************/
 
 /*
- * Request to write OTP data from secure normal world.
+ * Request to write OTP data loaded via memory block from secure normal world.
  *
  * "Call" register usage:
  * a0	SD_SIP_FUNC_S_OTP_WRITE
  * a1	Fuse data offset value
- * a2	32-bit physical pointer to an memory block to load OTP data on return
- *	or set it to 0 to write protection value only
- * a3	Size in bytes of OTP data to write
- * a4	Protection value
- * a5-7	Not used
+ * a2	Upper 32bits of 64-bit physical address to an memory block
+ * a3	Lower 32bits of 64-bit physical address to an memory block
+ *	Or set address to 0 to write protection value only
+ * a4	Size in bytes of OTP data to write
+ * a5	Protection value
+ * a6-7	Not used
  *
  * "Return" register usage:
  * a0	SD_SIP_E_SUCCESS on success, or other error code otherwise
- *	OTP data will be filled into the input memory block on success
- * a1-2	Not used
- * a3-7	Preserved
+ * a1-5	Not used
+ * a6-7	Preserved
  */
 #define SD_SIP_FUNC_S_OTP_WRITE		(SD_SIP_FUNC_S_BASE)
 
@@ -174,18 +177,19 @@
 /**********************************************************************/
 
 /*
- * Set PMAN settingns via PMAN Secure Table (PST).
+ * Set PMAN settingns via PMAN Secure Table (PST v1.0 or above).
  *
  * "Call" register usage:
  * a0	SD_SIP_FUNC_N_SET_PST
- * a1	32-bit physical pointer to an memory block loaded with PST
- * a2	Size in bytes of the memory block
- * a3-7	Not used
+ * a1	Upper 32bits of 64-bit physical address to an memory block
+ * a2	Lower 32bits of 64-bit physical address to an memory block
+ * a3	Size of data in bytes in the memory block
+ * a4-7	Not used
  *
  * "Return" register usage:
  * a0	SD_SIP_E_SUCCESS on success, or other error code otherwise
- * a1-2	Not used
- * a3-7	Preserved
+ * a1-3	Not used
+ * a4-7	Preserved
  */
 #define SD_SIP_FUNC_N_SET_PST		(SD_SIP_FUNC_N_BASE)
 
@@ -203,16 +207,17 @@
  *	                                                         |
  *	                                                        WnR
  *
- * a2	32-bit physical pointer to a register
- * a3	32-bit value to set with on write. Otherwise not used
- * a4	32-bit mask value on write. Otherwise not used
- * a5-7	Not used
+ * a2	Upper 32bits of 64-bit physical address to a register
+ * a3	Lower 32bits of 64-bit physical address to a register
+ * a4	32-bit value to set with on write. Otherwise not used
+ * a5	32-bit mask value on write. Otherwise not used
+ * a6-7	Not used
  *
  * "Return" register usage:
  * a0	SD_SIP_E_SUCCESS on success, or other error code otherwise
  * a1	32-bit register value on read succeeds. Otherwise not used.
- * a2-4	Not used
- * a3-7	Preserved
+ * a2-5	Not used
+ * a6-7	Preserved
  */
 #define SEC_MMIO_MODE_SHIFT		4
 #define SEC_MMIO_MODE_MASK		0xF
@@ -234,17 +239,22 @@
  *
  * "Call" register usage:
  * a0	SD_SIP_FUNC_N_RSA_KEY
- * a1	32-bit physical pointer to an memory block to load RSA public key on return
- * a2	Size in bytes of data to read, no less than 256
- * a3-7	Not used
+ * a1	Upper 32bits of 64-bit physical address to an memory block
+ * a2	Lower 32bits of 64-bit physical address to an memory block
+ * a3	Size of memory block in bytes, no less than 256
+ * a4-7	Not used
  *
  * "Return" register usage:
  * a0	SD_SIP_E_SUCCESS on success, or other error code otherwise
  *	RSA public key will be filled into the input memory block on success
- * a1-2	Not used
- * a3-7	Preserved
+ * a1-3	Not used
+ * a4-7	Preserved
  */
 #define SD_SIP_FUNC_N_RSA_KEY		(SD_SIP_FUNC_N_BASE + 2)
+
+/**********************************************************************/
+/*  SiP Others                                                        */
+/**********************************************************************/
 
 /* Sigma Designs SiP Calls error code */
 enum {
