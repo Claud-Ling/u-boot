@@ -243,6 +243,10 @@
  
 #define CONFIG_CMD_MII
 
+#if defined(CONFIG_TANGOX_SATA)
+# define CONFIG_CMD_SATA
+#endif
+
 /* supporing ARMOR shell */
 /* #define CONFIG_CMD_ARMORSHELL */
 
