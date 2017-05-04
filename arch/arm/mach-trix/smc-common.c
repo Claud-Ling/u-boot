@@ -191,3 +191,20 @@ int secure_get_rsa_pub_key(uint32_t *buf, const uint32_t nbytes)
 		return -EIO;
 	}
 }
+
+int secure_get_mem_state(const uintptr_t pa, const size_t len, uint32_t *pstate)
+{
+	BUG_ON(secure_get_security_state() == EXEC_STATE_SECURE);
+	BUG_ON(ops == NULL);
+	if (ops->get_mem_state) {
+		int ret;
+		ret = ops->get_mem_state(pa, len, pstate);
+		if (TEE_SVC_E_OK == ret) {
+			return 0;
+		} else {
+			return -EIO;
+		}
+	} else {
+		return -ENODEV;
+	}
+}

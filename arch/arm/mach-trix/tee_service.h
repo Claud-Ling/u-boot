@@ -38,6 +38,7 @@ struct tee_operations {
 	int (*secure_mmio)(unsigned long op, unsigned long pa, unsigned long a2, unsigned long a3, unsigned int wnr);
 	int (*fuse_read)(unsigned long ofs, unsigned long va, unsigned long len, unsigned int *pprot);
 	int (*get_rsa_key)(unsigned long va, unsigned long len);
+	int (*get_mem_state)(unsigned long pa, unsigned long len, unsigned int *pstate);
 };
 
 extern struct tee_operations tee_ops;
@@ -45,7 +46,7 @@ extern struct tee_operations tee_ops;
 #define TEE_OPS(tag, probe_fn, secure_state_fn,	\
 		set_pst_fn, set_l2x_fn,		\
 		mmio_fn, fusread_fn,		\
-		rsa_key_fn)			\
+		rsa_key_fn, mem_state_fn)	\
 struct tee_operations tee_ops = {		\
 	.name = tag,				\
 	.probe = probe_fn,			\
@@ -55,6 +56,7 @@ struct tee_operations tee_ops = {		\
 	.secure_mmio = mmio_fn,			\
 	.fuse_read = fusread_fn,		\
 	.get_rsa_key = rsa_key_fn,		\
+	.get_mem_state = mem_state_fn,		\
 };
 
 #endif /* !__ASSEMBLY__ */

@@ -114,9 +114,9 @@ int secure_write_reg(uint32_t mode, uint32_t pa, uint32_t val, uint32_t mask);
 #define secure_read_uint8(pa)	secure_read_generic(pa, 0, uint8_t)
 #define secure_read_uint16(pa)	secure_read_generic(pa, 1, uint16_t)
 #define secure_read_uint32(pa)	secure_read_generic(pa, 2, uint32_t)
-#define secure_write_uint8(pa, val, m)	secure_write_reg(0, (uint32_t)pa, (uint32_t)v, (uint32_t)m)
-#define secure_write_uint16(pa, val, m)	secure_write_reg(1, (uint32_t)pa, (uint32_t)v, (uint32_t)m)
-#define secure_write_uint32(pa, val, m)	secure_write_reg(2, (uint32_t)pa, (uint32_t)v, (uint32_t)m)
+#define secure_write_uint8(pa, v, m)	secure_write_reg(0, (uint32_t)pa, (uint32_t)v, (uint32_t)m)
+#define secure_write_uint16(pa, v, m)	secure_write_reg(1, (uint32_t)pa, (uint32_t)v, (uint32_t)m)
+#define secure_write_uint32(pa, v, m)	secure_write_reg(2, (uint32_t)pa, (uint32_t)v, (uint32_t)m)
 
 /*
  * @fn		int secure_get_rsa_pub_key(uint32_t *buf, const uint32_t nbytes);
@@ -126,6 +126,22 @@ int secure_write_reg(uint32_t mode, uint32_t pa, uint32_t val, uint32_t mask);
  * @return	return 0 and rsa public key filled in buf on success. Otherwise error code
  */
 int secure_get_rsa_pub_key(uint32_t *buf, const uint32_t nbytes);
+
+/*
+ * @fn		int secure_get_mem_state(const uintptr_t pa, const size_t len, uint32_t *pstate);
+ * @brief	check access state of specified memory block
+ * @param[in]	<pa>     - physical address of memory block
+ * @param[in]	<len>    - length of memory block in bytes
+ * @param[out]  <pstate> - pointer of buffer to load access state on success
+ *		bit[0]	- 1: secure accessible,   0: secure non-accessible
+ *		bit[1]	- 1: non-secure readable, 0: non-secure non-readable
+ *		bit[2]	- 1: non-secure writable, 0: non-secure non-writable
+ *		bit[3]	- 1: secure executable,   0: secure non-executable
+ *		bit[4]	- 1: ns executable,       0: non-secure non-executable
+ *		others	- N/A
+ * @return	return 0 and access state filled in buffer pointed by <pstate> on success. Otherwise error code
+ */
+int secure_get_mem_state(const uintptr_t pa, const size_t len, uint32_t *pstate);
 
 #endif /* !__ASSEMBLY__ */
 #endif /* __DTV_SMC_H__ */
