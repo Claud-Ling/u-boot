@@ -77,6 +77,23 @@ static void fw_boot(void)
 	struct fw_vol *dep_vol =  NULL;
 	int len = 0;
 	void *data = NULL;
+	char *s = NULL;
+	unsigned long load_addr = 0;
+	char cmd[64] = { 0 };
+
+#if CONFIG_ARM64
+	/*skip 2k Android bootimg header */
+	load_addr = 0x80000 - (2<<10);
+#else
+	/* Load to 16M offset @DDR */
+	load_addr = 0x1000000;
+#endif
+
+	s = getenv("kernel_load_addr");
+
+	if (s) {
+		load_addr = simple_strtoul(s, 0, 16);
+	}
 
 	boot = fw_get_vol_by_ability_enabled(g_ctx, FW_AB_BOOT, FW_BOOT_ACT);
 	if (!boot) {
@@ -109,7 +126,7 @@ static void fw_boot(void)
 	}
 
 
-	rd_sz = fw_read_volume(g_ctx, (void *)0x8000000, part->info->size);
+	rd_sz = fw_read_volume(g_ctx, (void *)load_addr, part->info->size);
 	if (rd_sz < 0) {
 		printf("fw: Load volume(%s) content failed!\n", boot->info->name);
 		return;
@@ -119,7 +136,7 @@ static void fw_boot(void)
 		goto skip_sig;
 	}
 
-	ret = signature_check((void *)0x8000000, part->info->valid_sz, PREBOOT_KEY, &part->info->part_sig[0]);
+	ret = signature_check((void *)load_addr, part->info->valid_sz, PREBOOT_KEY, &part->info->part_sig[0]);
 	if (ret) {
 		printf("\r\n##########Volume(%s)  RSA verify fail!############\r\n", boot->info->name);
 		volume_switch_part(boot);
@@ -127,8 +144,8 @@ static void fw_boot(void)
 	}
 
 skip_sig:
-	//TODO: bootm booti bootx case.
-	run_command("boota 8000000", 0);
+	snprintf(cmd, sizeof(cmd), "boota %lx", load_addr);
+	run_command(cmd, 0);
 	return;
 failed:
 	printf("\r\n############Signature check failed!, system halt##########\r\n");
