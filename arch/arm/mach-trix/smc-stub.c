@@ -56,7 +56,7 @@ int __weak secure_otp_get_fuse_mirror(const uint32_t offset, uint32_t *pval, uin
 	return -ENODEV;
 }
 
-int __weak secure_otp_get_fuse_array(const uint32_t offset, uint32_t *buf, const uint32_t nbytes, uint32_t *pprot)
+int __weak secure_otp_get_fuse_array(const uint32_t offset, uint32_t *buf, uint32_t *size, uint32_t *pprot)
 {
 	/* Should never call this function, BUG here */
 	BUG();

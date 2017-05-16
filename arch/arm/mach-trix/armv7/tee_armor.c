@@ -202,9 +202,13 @@ static int armor_otp_get_fuse_array(const uint32_t offset, uintptr_t buf, uint32
 	return ret;
 }
 
-static int armor_fuse_read(unsigned long ofs, unsigned long va, unsigned long len, unsigned int *pprot)
+static int armor_fuse_read(unsigned long ofs, unsigned long va, unsigned int *size, unsigned int *pprot)
 {
+	uint32_t len;
 	(void)pprot;
+	if (NULL == size)
+		return -EINVAL;
+	len = *size;
 	if (len == 4) {
 		return armor_otp_get_fuse_mirror(ofs, (uint32_t*)va);
 	} else {

@@ -163,15 +163,16 @@ int secure_write_reg(uint32_t mode, uint32_t pa, uint32_t val, uint32_t mask)
 
 int secure_otp_get_fuse_mirror(const uint32_t offset, uint32_t *pval, uint32_t *pprot)
 {
-	return secure_otp_get_fuse_array(offset, pval, 4, pprot);
+	uint32_t size = 4;
+	return secure_otp_get_fuse_array(offset, pval, &size, pprot);
 }
 
-int secure_otp_get_fuse_array(const uint32_t offset, uint32_t *buf, const uint32_t nbytes, uint32_t *pprot)
+int secure_otp_get_fuse_array(const uint32_t offset, uint32_t *buf, uint32_t *size, uint32_t *pprot)
 {
 	int ret;
 	BUG_ON(secure_get_security_state() == EXEC_STATE_SECURE);
 	BUG_ON(ops == NULL || ops->fuse_read == NULL);
-	ret = ops->fuse_read(offset, (uintptr_t)buf, nbytes, pprot);
+	ret = ops->fuse_read(offset, (uintptr_t)buf, size, pprot);
 	if (TEE_SVC_E_OK == ret) {
 		return 0;
 	} else {

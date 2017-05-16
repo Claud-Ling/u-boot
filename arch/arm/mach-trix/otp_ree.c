@@ -84,7 +84,7 @@ int otp_get_rsa_key_index(void)
  */
 uint32_t otp_get_rsa_key(uint32_t *buf, uint32_t nbytes)
 {
-	return secure_otp_get_fuse_array(FUSE_OFS_RSA_PUB_KEY, buf, nbytes, NULL);
+	return secure_otp_get_fuse_array(FUSE_OFS_RSA_PUB_KEY, buf, &nbytes, NULL);
 }
 
 /*

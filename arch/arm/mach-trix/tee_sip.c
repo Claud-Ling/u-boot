@@ -20,7 +20,7 @@
 #ifdef DEBUG
 # define NOISE_ON_FAIL(sret) do {				\
 	if ((sret) != SD_SIP_E_SUCCESS) {			\
-		error("%s failed ret %d\n", __func__, sret);	\
+		error("%s failed ret %d\n", __func__, (int)sret);	\
 	}							\
 }while(0)
 #else
@@ -136,16 +136,20 @@ static int sd_sip_mmio(unsigned long mode, unsigned long pa, unsigned long a2, u
 	return sip_to_tee_ret(res.a0);
 }
 
-static int sd_sip_fuse_read(unsigned long ofs, unsigned long va, unsigned long len, unsigned int *pprot)
+static int sd_sip_fuse_read(unsigned long ofs, unsigned long va, unsigned int *size, unsigned int *pprot)
 {
 	struct arm_smccc_res res;
 	uint32_t high, low;
 	BUG_ON(invoke_fn == NULL);
+	if (NULL == size)
+		return TEE_SVC_E_INVAL;
 	reg_pair_from_64(&high, &low, PHYADDR(va));
-	invoke_fn(SD_SIP_FUNC_C_OTP_READ, ofs, high, low, len, 0, 0, 0, &res);
+	invoke_fn(SD_SIP_FUNC_C_OTP_READ, ofs, high, low, *size, 0, 0, 0, &res);
 	NOISE_ON_FAIL(res.a0);
-	if (SD_SIP_E_SUCCESS == res.a0 && pprot != NULL) {
-		*pprot = res.a1;
+	if (SD_SIP_E_SUCCESS == res.a0) {
+		if (pprot != NULL)
+			*pprot = res.a1;
+		*size = res.a2;
 	}
 	return sip_to_tee_ret(res.a0);
 }

@@ -36,7 +36,7 @@ struct tee_operations {
 	int (*set_mem_protection)(unsigned long tva, unsigned long sz);
 	int (*set_l2x_reg)(unsigned long ofs, unsigned long val);
 	int (*secure_mmio)(unsigned long op, unsigned long pa, unsigned long a2, unsigned long a3, unsigned int wnr);
-	int (*fuse_read)(unsigned long ofs, unsigned long va, unsigned long len, unsigned int *pprot);
+	int (*fuse_read)(unsigned long ofs, unsigned long va, unsigned int *size, unsigned int *pprot);
 	int (*get_rsa_key)(unsigned long va, unsigned long len);
 	int (*get_mem_state)(unsigned long pa, unsigned long len, unsigned int *pstate);
 };

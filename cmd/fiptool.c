@@ -511,7 +511,7 @@ static int do_fipupd(cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])
 	if((argc != 4) && (argc != 5))
 		return CMD_RET_USAGE;
 
-	fip_id = (int)simple_strtoul(argv[1], NULL, 10);
+	fip_id = (int)simple_strtoul(argv[1], NULL, 16);
 	if((fip_id != 0) && (fip_id != 1))
 		return CMD_RET_USAGE;
 	img_name = argv[2];
@@ -521,7 +521,7 @@ static int do_fipupd(cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])
 	else
 	{
 		image_addr = (void *)simple_strtoul(argv[3], NULL, 16);
-		image_len = simple_strtoul(argv[4], NULL, 10);
+		image_len = simple_strtoul(argv[4], NULL, 16);
 	}
 
 	for (toc_entry = toc_entries;
@@ -628,5 +628,6 @@ U_BOOT_CMD(
 	"    tos-fw (BL32, trusted OS)\n"
 	"    nt-fw  (BL33)\n"
 	"    Note: FIP[0] range from 2M-4M, FIP[1] range from 4M-6M\n"
+	"          Digits shall be given in hexdecimal form\n"
 );
 

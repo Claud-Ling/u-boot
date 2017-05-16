@@ -60,7 +60,7 @@
 
 /* Sigma Designs SiP Service Calls version numbers */
 #define SD_SIP_SVC_VERSION_MAJOR	0x1
-#define SD_SIP_SVC_VERSION_MINOR	0x0
+#define SD_SIP_SVC_VERSION_MINOR	0x1
 
 /* Number of Sigma Designs SiP Calls implemented */
 #define SD_COMMON_SIP_NUM_CALLS		9
@@ -142,7 +142,8 @@
  * a0	SD_SIP_E_SUCCESS on success, or other error code otherwise
  *	OTP data will be filled into the input memory block on success
  * a1	Protection value
- * a2-4	Not used
+ * a2	OTP data size in bytes
+ * a3-4	Not used
  * a5-7	Preserved
  */
 #define SD_SIP_FUNC_C_OTP_READ		(SD_SIP_FUNC_C_BASE + 1)
@@ -166,7 +167,8 @@
  *
  * "Return" register usage:
  * a0	SD_SIP_E_SUCCESS on success, or other error code otherwise
- * a1-5	Not used
+ * a1	OTP data size in bytes
+ * a2-5	Not used
  * a6-7	Preserved
  */
 #define SD_SIP_FUNC_S_OTP_WRITE		(SD_SIP_FUNC_S_BASE)

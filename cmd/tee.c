@@ -14,7 +14,7 @@
 static int do_tee_test (int argc, char * const argv[])
 {
 	int i, ret;
-	uint32_t rsa_key[64];
+	uint32_t tmp, rsa_key[64];
 	printf("************probe sip svc*****************\n");
 	ret = secure_svc_probe();
 	printf("result: %d\n", ret);
@@ -37,6 +37,9 @@ static int do_tee_test (int argc, char * const argv[])
 	printf("secure_boot state: %d\n", ret);
 	ret = otp_get_rsa_key_index();
 	printf("rsa key index: %d\n", ret);
+	tmp = 0;
+	ret = secure_otp_get_fuse_array(0xC, NULL, &tmp, NULL);
+	printf("get_fuse_array: %d, FC_2 len: %d\n", ret, tmp);
 	ret = secure_get_rsa_pub_key(rsa_key, sizeof(rsa_key));
 	printf("get rsa pub key: %d\n", ret);
 	for (i = 0; i < ARRAY_SIZE(rsa_key); i++) {

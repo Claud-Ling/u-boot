@@ -65,15 +65,15 @@ int secure_set_mem_protection(const uintptr_t va, const uint32_t sz);
 int secure_otp_get_fuse_mirror(const uint32_t offset, uint32_t *pval, uint32_t *pprot);
 
 /*
- * @fn		int secure_otp_get_fuse_array(const uint32_t offset, uint32_t *buf, const uint32_t nbytes, uint32_t *pprot);
+ * @fn		int secure_otp_get_fuse_array(const uint32_t offset, uint32_t *buf, uint32_t *size, uint32_t *pprot);
  * @brief	request tee to read fuse array, must from NS world
  * @param[in]	<offset> - fuse offset
- * @param[out]	<buf>    - buffer pointer, or NULL to read protection only
- * @param[in]	<nbytes> - buffer length
+ * @param[out]	<buf>    - buffer pointer, or NULL to read protection and fuseonly
+ * @param[inout]<size>   - pointer of integar with buffer length on entry, fuse length on exit
  * @param[out]	<pprot>  - pointer of integar to load protection value on return, or NULL to ignore
  * @return	return 0 and fuse value filled in buf on success. Otherwise error code
  */
-int secure_otp_get_fuse_array(const uint32_t offset, uint32_t *buf, const uint32_t nbytes, uint32_t *pprot);
+int secure_otp_get_fuse_array(const uint32_t offset, uint32_t *buf, uint32_t *size, uint32_t *pprot);
 
 
 /*
