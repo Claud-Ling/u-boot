@@ -330,7 +330,8 @@ static fip_image_t *read_image_from_file(toc_entry_t *toc_entry, char *file_name
 		pr_err("get size of %s failed\n", file_name);
 		return NULL;
 	}
-	buf = (char *)malloc(file_size);
+	/* make cacheline aligned buffer for DMA */
+	buf = memalign(ARCH_DMA_MINALIGN, file_size);
 	if(buf == NULL)
 	{
 		pr_err("malloc %lld bytes for file failed\n", file_size);
@@ -503,6 +504,13 @@ static int update_fip(void)
 
 static int do_fipupd(cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])
 {
+/*
+ * Threshold value based on the worst-case total size of double firmware
+ * image package size (2 * 2MB).
+ */
+#if CONFIG_SYS_MALLOC_LEN < 4 * 1024 * 1024
+#warning CONFIG_SYS_MALLOC_LEN may be too small for fipupd
+#endif
 	fip_toc_header_t toc_header = {0};
 	toc_entry_t *toc_entry;
 	char *img_name = NULL;
