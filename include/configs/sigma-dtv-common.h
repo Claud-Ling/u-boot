@@ -368,7 +368,13 @@
 #   define CONFIG_CMD_BOOTMIPS
 #   define CONFIG_CMD_LOADSETTINGS
 #   define CONFIG_PMAN_ENTRY_SUPPORT
+#   define CONFIG_SWAP_PARTITION
 #   define CONFIG_CMD_MD5SUM
+#   ifdef CONFIG_SIGMA_SOC_SX8
+#     define CONFIG_MULTI_TSE
+#     define CONFIG_CMD_TSED
+#     define CONFIG_TSE_BUF_LEN	0x200000
+#   endif
 #endif
 
 /* secure monitor dependent */

@@ -7,7 +7,7 @@
 #ifdef CONFIG_CMD_NAND
 #include <nand.h>
 #endif
-#ifdef CONFIG_CMD_EXT4
+#ifdef CONFIG_SWAP_PARTITION
 #include <fs.h>
 #include <image.h>
 #include <u-boot/md5.h>
@@ -123,7 +123,7 @@ static SdImgDesc_t imgdescs[] =
 	{IMG_CFG,	"setting_cfg.xml"},
 	{IMG_ST,	"initsetting.file"},
 	{IMG_LOGO,	"logo.bin"},
-	{IMG_AUDIO,  "audio_boot.bin"},
+	{IMG_AUDIO,	"audio_boot.bin"},
 	{IMG_INVAL,	NULL},
 };
 
@@ -138,7 +138,7 @@ static SdImgDesc_t imgdescs[] =
 	_ret;						\
 })
 
-#ifdef CONFIG_CMD_EXT4
+#ifdef CONFIG_SWAP_PARTITION
 #define MD5SUM_LEN 32
 typedef struct _tagMetaData{
 	char version[16];
@@ -588,8 +588,10 @@ typedef struct _tagSdMipsDbg{
 	int (*prepare)(void);
 	int (*cleanup)(void);
 	int (*scan)(int arg1, int arg2);	/* scan for debug images, return 0 on success or -1 otherwise */
-	int (*load)(int id, void* buf,int len);	/* load len bytes of specified debug image to buffer,
-						 * giving len=0 for all.
+	int (*load)(int id, loff_t pos,
+		    void* buf,int len);		/* load len bytes from pos of specified debug image to buffer,
+						 * giving buf=NULL to query file length.
+						 * giving len=0 for all data.
 						 * return number of copied bytes on success, or -1 on error
 						 */
 	struct mdbg_payload{
@@ -599,7 +601,7 @@ typedef struct _tagSdMipsDbg{
 
 static int mdbg_domain_init(void);
 static int mdbg_domain_scan(int, int);
-static int mdbg_domain_load(int, void*, int);
+static int mdbg_domain_load(int, loff_t pos, void*, int);
 static SdMipsDbg_t mdbg = {
 	.active = 0,
 	.domain = MDBG_DOMAIN_NONE,
@@ -699,9 +701,10 @@ out:
 #undef CHECK_IMG
 }
 
-static int mdbg_domain_load(int id, void* buff, int len)
+static int mdbg_domain_load(int id, loff_t pos, void* buff, int len)
 {
-	int sz = 0;
+	int ret;
+	loff_t sz = 0;
 	char url[64];
 
 	if (mdbg.domain != MDBG_DOMAIN_USB) {
@@ -709,18 +712,23 @@ static int mdbg_domain_load(int id, void* buff, int len)
 	}
 
 	snprintf(url, 64, "%s%s", MDBG_DIR, GetImgName(id));
-	sz = file_fat_read(url, (unsigned char*)buff, len);
-	if (sz > 0) {
+	if (buff == NULL) {
+		return fat_size(url, &sz) ? -1 : (int)sz;
+	}
+
+	ret = file_fat_read_at(url, pos, buff, len, &sz);
+	if (0 == ret) {
 		printf("[  OK] ");
-		printf("load '%s' to %p(0x%08x)\n", GetImgName(id), buff, sz);
+		printf("load '%s' to %p(0x%08x)\n", GetImgName(id), buff, (int)sz);
 		flush_cache((ulong)buff, sz);
 	} else {
 		printf("[FAIL] ");
 		debug("unable to read debug image '%s' from usb", GetImgName(id));
 		printf("\n");
+		sz = -1;
 	}
 
-	return sz;
+	return (int)sz;
 }
 #else /*CONFIG_CMD_USB && CONFIG_CMD_FAT*/
 static int mdbg_domain_init(void)
@@ -734,7 +742,7 @@ static int mdbg_domain_scan(int arg1, int arg2)
 	return 0;
 }
 
-static int mdbg_domain_load(int id, void* buf, int len)
+static int mdbg_domain_load(int id, loff_t pos, void* buf, int len)
 {
 	return -1;
 }
@@ -765,33 +773,41 @@ static int mdbg_cleanup(void)
 #endif /*CONFIG_DEBUG_MIPS*/
 
 #ifdef CONFIG_CMD_EXT4
-static int load_from_ext4(SdImgPayload_t id)
+static int load_from_swap(SdImgPayload_t id)
 {
 	if(id == IMG_DB || id == IMG_LOGO || id == IMG_AUDIO)
 		return 1;
 	return 0;
 }
 
-static int ext4_load_file(const char* file_name, void *addr)
+static int swap_load_file(const char* file_name, void *addr)
 {
 	const char *ifname = "mmc";
 	const char *dev_part = "0";
 	int fstype = FS_TYPE_EXT;
 	loff_t len_read;
 
-	if(!file_name || !addr)
+	if(!file_name)
+		return -1;
+
+	if (!file_exists(ifname, dev_part, file_name, fstype))
 		return -1;
 
 	if(fs_set_blk_dev(ifname, dev_part, fstype))
 		return -1;
 
-	if(fs_read(file_name, (unsigned long)addr, 0, 0, &len_read) < 0)
-		return -1;
+	if (NULL == addr) {
+		if (fs_size(file_name, &len_read) < 0)
+			return -1;
+	} else {
+		if(fs_read(file_name, (unsigned long)addr, 0, 0, &len_read) < 0)
+			return -1;
+	}
 
 	return len_read;
 }
 
-static int ext4_get_md5sum(const char* file_name, char* md5sum)
+static int swap_get_md5sum(const char* file_name, char* md5sum)
 {
 	char *addr;
 	const char *md5sum_dir = ".meta/";
@@ -807,7 +823,7 @@ static int ext4_get_md5sum(const char* file_name, char* md5sum)
 		return -1;
 	}
 	snprintf(md5sum_file, sizeof(md5sum_file), "%s%s.meta", md5sum_dir, file_name);
-	if(ext4_load_file(md5sum_file, (void *)addr) < 0)
+	if(swap_load_file(md5sum_file, (void *)addr) < 0)
 	{
 		pr_warn("can't get %s\n", md5sum_file);
 		free(addr);
@@ -819,7 +835,7 @@ static int ext4_get_md5sum(const char* file_name, char* md5sum)
 	return 0;
 }
 
-static int ext4_calc_md5sum(void* addr, unsigned int len, char* md5sum)
+static int swap_calc_md5sum(void* addr, unsigned int len, char* md5sum)
 {
 	unsigned char output[16];
 	unsigned int i;
@@ -839,15 +855,15 @@ static int ext4_calc_md5sum(void* addr, unsigned int len, char* md5sum)
 	return 0;
 }
 
-static int ext4_check_file(const char* file_name, void* addr, unsigned int len)
+static int swap_check_file(const char* file_name, void* addr, unsigned int len)
 {
 	MetaData_t meta1, meta2;
 
 	if(!file_name || !addr || len == 0)
 		return -1;
-	if(ext4_calc_md5sum(addr, len, meta1.md5sum) != 0)
+	if(swap_calc_md5sum(addr, len, meta1.md5sum) != 0)
 		return -1;
-	if(ext4_get_md5sum(file_name, meta2.md5sum) != 0)
+	if(swap_get_md5sum(file_name, meta2.md5sum) != 0)
 		return -1;
 	if(memcmp(meta1.md5sum, meta2.md5sum, MD5SUM_LEN) != 0)
 	{
@@ -857,7 +873,27 @@ static int ext4_check_file(const char* file_name, void* addr, unsigned int len)
 
 	return 0;
 }
-#endif
+#else /* !CONFIG_CMD_EXT4 */
+static int load_from_swap(SdImgPayload_t id)
+{
+	return 0;
+}
+
+static int swap_load_file(const char* file_name, void *addr)
+{
+	return -1;
+}
+
+static int swap_check_file(const char* file_name, void* addr, unsigned int len)
+{
+	return -1;
+}
+#endif /* CONFIG_CMD_EXT4 */
+
+static uint32_t get_panel_id_from_env(const char* s)
+{
+	return simple_strtoul(s, NULL, 10);	/* in decimal */
+}
 
 static int do_load_memfile(void* img, u32 len, void* mimg_ddr, u32 mlen, int target_ending)
 {
@@ -1198,6 +1234,293 @@ static int do_fixup_loadaddr(SdImgPayload_t id, void* cfg, unsigned dlen, unsign
 	return 0;
 }
 
+#ifdef CONFIG_MULTI_TSE
+
+#ifdef CONFIG_TSE_BUF_LEN
+# define TSE_MAX_LEN	CONFIG_TSE_BUF_LEN
+#else
+# define TSE_MAX_LEN	0x200000	/*2M?*/
+#endif
+
+#define NAME_MAX_LEN	128
+#define FILE_MAX_NUM	256
+
+#define TSE_MAJOR	1
+#define TSE_MINOR	0
+
+#define TSE_MAIN_FILE_INDEX		0x00
+#define TSE_PQ_MAIN_FILE_INDEX		0x01
+#define TSE_PQ_PANEL_FILE_FIRST_INDEX	0x10
+
+#define TSE_PANEL_ID_MAIN		0x00
+#define TSE_PANEL_ID_DEFAULT		0x01
+
+#define TSE_VERSION(a,b) (((a) << 8) + (b))
+#define TSE_VERSION_IS_OK(h)	((((h)->version >> 8) & 0xff) == TSE_MAJOR &&	\
+				 ((h)->version & 0xff) >= TSE_MINOR)
+
+typedef struct tse_index_table_header {
+	unsigned char magic_number[4];
+	unsigned short version;
+	unsigned short header_len;
+	unsigned int total_len;
+	unsigned int items_count;
+	unsigned int header_crc32;
+	unsigned int index_table_crc32;
+}__packed TSE_INDEX_TABLE_HEADER;
+
+typedef struct tse_index_table_item {
+	unsigned int panel_id;
+	unsigned int address;
+	unsigned int size;
+}__packed TSE_INDEX_TABLE_ITEM;
+
+/*
+ * data integrity check
+ */
+static int validate_database_tse(char *p_tse_data, int tse_data_size)
+{
+	TSE_INDEX_TABLE_HEADER *pihdr = NULL, hdr;
+	int items_count = 0;
+	unsigned int crc32_value = 0;
+
+	if(p_tse_data == NULL || tse_data_size < sizeof(TSE_INDEX_TABLE_HEADER)) {
+		pr_err("input tse data error\n");
+		return -1;
+	}
+	pihdr = (TSE_INDEX_TABLE_HEADER *)p_tse_data;
+
+	/* check magic number */
+	if(!(pihdr->magic_number[0] == 'T' && pihdr->magic_number[1] == 'S' &&
+	     pihdr->magic_number[2] == 'E' && pihdr->magic_number[3] == '\0')) {
+		pr_err("magic error, not tse\n");
+		return -1;
+	}
+
+	/* check version code */
+	if (!TSE_VERSION_IS_OK(pihdr)) {
+		pr_err("tse version mismatch: 0x%04x\n", pihdr->version);
+		return -1;
+	}
+
+	/* check index table header crc32 is correct or not */
+	hdr = *pihdr;
+	hdr.header_crc32 = 0;
+	crc32_value = crc32(0, (void *)&hdr, sizeof(TSE_INDEX_TABLE_HEADER));
+	if(crc32_value != pihdr->header_crc32) {
+		pr_err("error tse header crc 0x%08x : 0x%08x\n", pihdr->header_crc32, crc32_value);
+		return -1;
+	}
+
+	/* check index table crc32 is correct or not */
+	items_count = pihdr->items_count;
+	if (tse_data_size < (sizeof(TSE_INDEX_TABLE_HEADER) + items_count * sizeof(TSE_INDEX_TABLE_ITEM))) {
+		pr_err("short tse index table! act 0x%x\n", tse_data_size);
+		return -1;
+	}
+
+	crc32_value = crc32(0, (void *)(p_tse_data + sizeof(TSE_INDEX_TABLE_HEADER)), items_count * sizeof(TSE_INDEX_TABLE_ITEM));
+	if(crc32_value != pihdr->index_table_crc32) {
+		pr_err("error index table crc 0x%08x : 0x%08x\n", pihdr->index_table_crc32, crc32_value);
+		return -1;
+	}
+
+	/* check if all tse data is in place */
+	if (tse_data_size < pihdr->total_len) {
+		pr_err("short tse table! total 0x%x act 0x%x\n", pihdr->total_len, tse_data_size);
+		return -1;
+	}
+	return 0;
+}
+
+static int get_tse_from_index_table(char *p_tse_data, int tse_data_size,
+				    u32 panel_id, u32 *p_tse_address,
+				    u32 *p_tse_size)
+{
+	TSE_INDEX_TABLE_HEADER *pihdr = NULL;
+	TSE_INDEX_TABLE_ITEM *ientry = NULL;
+	int i, items_count = 0;
+
+	pihdr = (TSE_INDEX_TABLE_HEADER *)p_tse_data;
+	items_count = pihdr->items_count;
+
+	/* get tse block address and size */
+	ientry = (TSE_INDEX_TABLE_ITEM *)(p_tse_data + sizeof(TSE_INDEX_TABLE_HEADER));
+	for(i = 0; i < items_count; i++) {
+		if(ientry->panel_id == panel_id) /*find it*/
+			break;
+		ientry++;
+	}
+	if(i == items_count) {
+		pr_err("can't find panel id %08x in index table\n", panel_id );
+		return -1;
+	}
+
+	*p_tse_address = ientry->address;
+	*p_tse_size    = ientry->size;
+	debug("panel id %08x , ofs 0x%08x , size %d\n", panel_id ,*p_tse_address, *p_tse_size);
+	return 0;
+}
+
+static int load_database_tse(void* img, u32 slen, uintptr_t dest, u32 blen, loadfunc_t loader)
+{
+	int ret, len;
+#ifdef CONFIG_DEBUG_MIPS
+	/* in case have debug image... */
+	if (blen != 0) {
+		if ((len = mdbg.load(IMG_DB, 0, NULL, 0)) == -1)
+			goto skip_debug;
+		if (len > blen) {
+			pr_warn("small buffer for debug TSE, req %x\n", len);
+			goto skip_debug;
+		}
+	}
+
+	if((ret = mdbg.load(IMG_DB, 0, (void*)dest, blen)) != -1)
+		return ret;
+skip_debug:
+#endif
+	if (!img || slen==0)
+		return -1;
+	if (!loader)
+		return -1;
+
+	if (blen != 0 && blen < slen) {
+		pr_warn("small buffer when load tse!\n");
+	}
+	len = (blen == 0 || blen > slen) ? slen : blen;
+	debug("load '%s' to %p(0x%08x)\n", "database.TSE", (void*)dest, len);
+
+	/* load images */
+	ret = loader(img, len, (void*)dest);
+	return ret;
+}
+
+static int do_load_tse(void* img, u32 slen, uintptr_t dest, u32 blen, loadfunc_t loader)
+{
+/* helper to check if is inside tse buffer */
+#define TSE_BUF_IS_INSIDE(o, sz) ({			\
+	int _ret = 1;					\
+	if ((o) > (o) + (sz)) {				\
+		pr_warn("%s:%d buffer overflow: %x+%x\n",\
+			__func__, __LINE__, (o), (sz));	\
+		_ret = 0;				\
+	} else if ((o) + (sz) > TSE_MAX_LEN) {	\
+		pr_warn("%s:%d small buffer: %x+%x\n",	\
+			__func__, __LINE__, (o), (sz));	\
+		_ret = 0;				\
+	}						\
+	_ret;						\
+})
+
+	char* s;
+	int ret, len, rlen, ofs;
+	void *mbuf = NULL, *buf = NULL;
+	u32 buf_size;
+	u32 tofs, tsize;
+
+	/*
+	 * set database cache buffer.
+	 * in priority:
+	 * 1. malloc(buf_size) (cacheline aligned buffer)
+	 * 2. use tmp buffer [dest-buf_size, dest)
+	 *
+	 * where buf_size is deduced by
+	 *   buf_size = strtoul("tse_cache_size", 16) if env "tse_cache_size" is specified.
+	 *   otherwise buf_size = slen.
+	 */
+	if ((s = getenv("tse_cache_size")))
+		buf_size = simple_strtoul(s, 0, 16);
+	else
+		buf_size = slen;
+
+	buf = mbuf = memalign(ARCH_DMA_MINALIGN, buf_size);
+	if (!buf) {
+		buf = (void*)rounddown((dest - buf_size), ARCH_DMA_MINALIGN);
+		debug("tse tmp buf: %p\n", buf);
+	}
+
+	/* load database.TSE file (to cache buffer) */
+	len = load_database_tse(img, slen, (uintptr_t)buf, buf_size, loader);
+	if (len < 0) {
+		ret = -2;
+		goto out;
+	}
+
+	/* validate TSE */
+	ret = validate_database_tse(buf, len);
+	if (ret != 0) {
+		ret = -3;
+		goto out;
+	}
+
+	/* copy main TSE */
+	ofs = rlen = 0;
+	ret = get_tse_from_index_table(buf, len, TSE_PANEL_ID_MAIN, &tofs, &tsize);
+	if (ret != 0 || !TSE_BUF_IS_INSIDE(0, tsize)) {
+		ret = -4;
+		goto out;
+	}
+	memcpy((void*)dest, buf + tofs, tsize);
+	ofs += tsize;
+	rlen += tsize;
+
+	/*
+	 * copy panel TSE, in priority:
+	 * 1. read panel.tse from swap partition
+	 * 2. search one by panel_type from TSE file
+	 * 3. use default panel tse from TSE file
+	 */
+#if defined(CONFIG_SWAP_PARTITION) && !defined(CONFIG_SWAP_NO_TSE)
+# define PANEL_TSE_FILE	"panel.tse"
+	if ((len = swap_load_file(PANEL_TSE_FILE, NULL)) != -1) {
+		uintptr_t dst_align = roundup(dest + ofs, 4);
+		if (TSE_BUF_IS_INSIDE((int)(dst_align - dest), len) &&
+		    (len = swap_load_file(PANEL_TSE_FILE, (void*)dst_align)) != -1) {
+			if(!swap_check_file(PANEL_TSE_FILE, (void*)dst_align, len)) {
+				if (dst_align != dest + ofs)
+					memmove((void*)dest + ofs, (void*)dst_align, len);
+				printf("\nswap load '%s' OK\n", PANEL_TSE_FILE);
+				rlen += len;
+				ret = rlen;
+				goto out;
+			}
+		}
+	}
+#endif
+
+	if ((s = getenv("panel_type"))) {
+		u32 panel_id;
+		panel_id = get_panel_id_from_env(s);
+		ret = get_tse_from_index_table(buf, len, panel_id, &tofs, &tsize);
+		if (!ret)
+			goto set_panel_tse;
+	}
+
+	pr_warn("fallback to default panel tse\n");
+	ret = get_tse_from_index_table(buf, len, TSE_PANEL_ID_DEFAULT, &tofs, &tsize);
+	if (ret != 0) {
+		ret = -5;
+		goto out;
+	}
+
+set_panel_tse:
+	if (!TSE_BUF_IS_INSIDE(ofs, tsize)) {
+		ret = -6;
+		goto out;
+	}
+	memcpy((void*)dest + ofs, buf + tofs, tsize);
+	ofs += tsize;
+	rlen += tsize;
+	ret = rlen;
+out:
+	if (mbuf != NULL)
+		free(mbuf);
+	return ret;
+}
+
+#endif /* CONFIG_MULTI_TSE */
+
 static int do_load_image(SdImgPayload_t id, void* img, u32 slen, uintptr_t dest, u32 blen, loadfunc_t loader)
 {
 	int ret = 0, len = 0;
@@ -1208,21 +1531,30 @@ static int do_load_image(SdImgPayload_t id, void* img, u32 slen, uintptr_t dest,
 		return -1;
 	}
 
+#ifdef CONFIG_MULTI_TSE
+	if (IMG_DB == id) {
+		if ((ret = do_load_tse(img, slen, dest, blen, loader)) >= 0)
+			return ret;
+
+		debug("fallback to legacy TSE\n");
+	}
+#endif
+
 #ifdef CONFIG_DEBUG_MIPS
 	/* in case have debug image... */
-	if((ret = mdbg.load(id, (void*)dest, blen)) != -1)
+	if((ret = mdbg.load(id, 0, (void*)dest, blen)) != -1)
 		return ret;
 #endif
 
-#ifdef CONFIG_CMD_EXT4
-	if(1 == load_from_ext4(id))
+#ifdef CONFIG_SWAP_PARTITION
+	if(1 == load_from_swap(id))
 	{
-		if((len = ext4_load_file(GetImgName(id), (void*)dest)) != -1)
+		if((len = swap_load_file(GetImgName(id), (void*)dest)) != -1)
 		{
-			if(ext4_check_file(GetImgName(id), (void*)dest, len) == 0)
+			if(swap_check_file(GetImgName(id), (void*)dest, len) == 0)
 			{
-				printf("\nEXT4 load: %s load: OK\n", GetImgName(id));
-				return 0;
+				printf("\nswap load '%s' OK\n", GetImgName(id));
+				return len;
 			}
 		}
 	}
@@ -1246,6 +1578,55 @@ static int do_load_image(SdImgPayload_t id, void* img, u32 slen, uintptr_t dest,
 
 	return ret;
 }
+
+#ifdef CONFIG_CMD_TSED
+static int do_tse_display(cmd_tbl_t * cmdtp, int flag, int argc, char * const argv[])
+{
+	int i;
+	void *load_addr = NULL;
+	int load_size = 0;
+	TSE_INDEX_TABLE_HEADER *hdr = NULL;
+	TSE_INDEX_TABLE_ITEM *e = NULL;
+
+	if (argc < 3)
+		return CMD_RET_USAGE;
+
+	load_addr = (void *)simple_strtoul(argv[1], NULL, 16);
+	load_size = (int)simple_strtoul(argv[2], NULL, 16);
+
+	/* validate TSE */
+	if (validate_database_tse(load_addr, load_size) != 0)
+		return CMD_RET_FAILURE;
+
+	/* list TSE */
+	hdr = (TSE_INDEX_TABLE_HEADER*)load_addr;
+	printf("----------------------------------\n");
+	printf("TSE header\n");
+	printf("version:   0x%x(%d.%d)\n", hdr->version,
+			(hdr->version>>8)&0xFF, hdr->version&0xFF);
+	printf("hdr_len:   0x%x\n", hdr->header_len);
+	printf("total_len: 0x%x\n", hdr->total_len);
+	printf("items_cnt: 0x%x\n", hdr->items_count);
+	printf("hdr_crc:   0x%08x\n", hdr->header_crc32);
+	printf("itab_crc:  0x%08x\n", hdr->index_table_crc32);
+	printf("----------------------------------\n");
+	printf("TSE entries: <id> <addr> <sz>\n");
+	e = (TSE_INDEX_TABLE_ITEM*)(hdr + 1);
+	for (i = 0; i < hdr->items_count; i++, e++) {
+		printf("0x%08x 0x%08x 0x%08x\n", e->panel_id, e->address, e->size);
+	}
+	return CMD_RET_SUCCESS;
+}
+
+U_BOOT_CMD(
+	tsed, CONFIG_SYS_MAXARGS, 1, do_tse_display,
+	"display database.TSE file",
+	("<addr> <size>\n"
+	"    validate and list TSE file at address 'addr'\n"
+	"    'addr' and 'size' shall be given in hex form\n"
+	)
+);
+#endif /* CONFIG_CMD_TSED */
 
 static int do_bootmips(cmd_tbl_t * cmdtp, int flag, int argc, char * const argv[])
 {
@@ -1488,7 +1869,7 @@ static int do_bootmips(cmd_tbl_t * cmdtp, int flag, int argc, char * const argv[
 			if (p != NULL) {
 				const char* attr = "panel";
 				nodeofs = (unsigned)((void*)node.start - cfg_buf - strlen(attr));
-				tmp = simple_strtoul(p, NULL, 10);
+				tmp = get_panel_id_from_env(p);
 				if ((do_fixup_xml_node_attr((void*)disp_addr+hdr->mcfg_ofs,
 							   hdr->target_ending, nodeofs,
 							   hdr->mcfglen_size, tmp, attr))) {
