@@ -329,9 +329,9 @@
 
 /*filesystem*/
 #define CONFIG_CMD_FAT
-#define CONFIG_CMD_CRAMFS
+/* #define CONFIG_CMD_CRAMFS */ /* So far, no cramfs be used */
 #define CONFIG_DOS_PARTITION
-#define CONFIG_CRAMFS_CMDLINE
+/* #define CONFIG_CRAMFS_CMDLINE */ /* So far, no cramfs be used */
 
 /*net*/
 #define CONFIG_CMD_MII          /* MII support                  */
