@@ -133,6 +133,27 @@ typedef union _tagPCTL_DQSECFGReg {
 } PCTL_DQSECFGReg;
 
 /*Protocol Control*/
+#if defined(CONFIG_SIGMA_SOC_SX8)
+struct umac_pctl{
+	volatile U32 cfg0;			/* +0x000 */
+	volatile U32 cfg1;			/* +0x004 */
+	volatile U32 cfg2;			/* +0x008 */
+	volatile U32 cfg3;			/* +0x00c */
+	volatile U32 cfg4;			/* +0x010 */
+	volatile U32 cfg5;			/* +0x014 */
+	volatile U32 pad0[NW(0x018, 0x520)];	/* +0x018 */
+	volatile U32 phy_pad_ctl;		/* +0x520 */
+	volatile U32 pad1[NW(0x524, 0x570)];	/* +0x524 */
+	volatile U32 uniquify_io_1;		/* +0x570 */
+	volatile U32 pad2[NW(0x574, 0x588)];	/* +0x574 */
+	volatile U32 phy_scl_start_addr;	/* +0x588 */
+	volatile U32 pad3[NW(0x58c, 0x5c4)];	/* +0x58c */
+	volatile U32 ddr4_config_1;		/* +0x5c4 */
+	volatile U32 vref_training;		/* +0x5c8 */
+	volatile U32 pad4[NW(0x5cc, 0xfb0)];	/* +0x5cc */
+	volatile U32 reg4;			/* +0xfb0 */
+};
+#else
 struct umac_pctl{
 	volatile PCTL_SCFGReg scfg;		/* +0x000 */
 	volatile PCTL_SCTLReg sctl;		/* +0x004 */
@@ -147,6 +168,7 @@ struct umac_pctl{
 	volatile U32 pvtupdi;			/* +0x328 */
 	volatile U32 pad4[NW(0x32c,0x400)];	/* +0x32c */
 };
+#endif
 
 /*Operational State Status Register*/
 typedef union _tagPHY_PIRReg {
@@ -238,6 +260,7 @@ typedef union _tagPHY_DXnLCDLR1Reg {
 
 /*PHY Utility Block*/
 struct umac_pub{
+#if defined(CONFIG_SIGMA_SOC_SX7) || defined(CONFIG_SIGMA_SOC_SX6) || defined(CONFIG_SIGMA_SOC_UXLB)
 	volatile U32 phy_ridr;			/* +0x400 */
 	volatile PHY_PIRReg phy_pir;		/* +0x404 */
 	volatile U32 pad00[NW(0x408,0x430)];	/* +0x408 */
@@ -272,6 +295,9 @@ struct umac_pub{
 	volatile U32 pub_tr_rw_ofs;		/* +0xfe4, except uxlb */
 	volatile U32 pub_tr_rw_ofs_sign;	/* +0xfe8, except uxlb */
 	volatile U32 pad9[NW(0xfec,0x1000)];	/* +0xfec */
+#elif defined(CONFIG_SIGMA_SOC_SX8)
+	U32 dummy[0];
+#endif
 };
 
 /*Arbiter, uxlb only*/

@@ -47,6 +47,7 @@ int main(void)
 #endif
 	DEFINE(MCTL_OFS_IF_ENABLE, offsetof(struct umac_mac, mctl.if_enable));
 	BLANK();
+#if defined(CONFIG_SIGMA_SOC_SX6) || defined(CONFIG_SIGMA_SOC_SX7) || defined(CONFIG_SIGMA_SOC_UXLB)
 	DEFINE(PCTL_OFS_SCTL, offsetof(struct umac_phy, pctl.sctl));
 	DEFINE(PCTL_OFS_STAT, offsetof(struct umac_phy, pctl.stat));
 	DEFINE(PCTL_OFS_DQSECFG, offsetof(struct umac_phy, pctl.dqsecfg));
@@ -67,10 +68,23 @@ int main(void)
 	DEFINE(PUB_OFS_PHY_DX1LCDLR1, offsetof(struct umac_phy, pub.phy_dx1lcdlr1));
 	DEFINE(PUB_OFS_PHY_DX2LCDLR1, offsetof(struct umac_phy, pub.phy_dx2lcdlr1));
 	DEFINE(PUB_OFS_PHY_DX3LCDLR1, offsetof(struct umac_phy, pub.phy_dx3lcdlr1));
-#if !defined(CONFIG_SIGMA_SOC_UXLB)
+#endif
+#if defined (CONFIG_SIGMA_SOC_SX8)
+	DEFINE(PCTL_OFS_CFG1, offsetof(struct umac_phy, pctl.cfg1));
+	DEFINE(PCTL_OFS_CFG4, offsetof(struct umac_phy, pctl.cfg4));
+	DEFINE(PCTL_OFS_PHY_PAD_CTL, offsetof(struct umac_phy, pctl.phy_pad_ctl));
+	DEFINE(PCTL_OFS_UNIQUIFY_IO_1, offsetof(struct umac_phy, pctl.uniquify_io_1));
+	DEFINE(PCTL_OFS_SCL_START_ADDR, offsetof(struct umac_phy, pctl.phy_scl_start_addr));
+	DEFINE(PCTL_OFS_DDR4_CONFIG_1, offsetof(struct umac_phy, pctl.ddr4_config_1));
+	DEFINE(PCTL_OFS_VREF_TARINING, offsetof(struct umac_phy, pctl.vref_training));
+	DEFINE(PCTL_OFS_REG4, offsetof(struct umac_phy, pctl.reg4));
+#endif
+
+#if defined(CONFIG_SIGMA_SOC_SX6) || defined(CONFIG_SIGMA_SOC_SX7)
 	DEFINE(PUB_OFS_TR_RW_OFS, offsetof(struct umac_phy, pub.pub_tr_rw_ofs));
 	DEFINE(PUB_OFS_TR_RW_OFS_SIGN, offsetof(struct umac_phy, pub.pub_tr_rw_ofs_sign));
-#else
+#endif
+#if defined(CONFIG_SIGMA_SOC_UXLB)
 	BLANK();
 	DEFINE(ABT_OFS_TR_RW_OFS, offsetof(struct umac_arbt, pub_tr_rw_ofs));
 	DEFINE(ABT_OFS_TR_RW_OFS_SIGN, offsetof(struct umac_arbt, pub_tr_rw_ofs_sign));
