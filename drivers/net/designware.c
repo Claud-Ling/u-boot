@@ -285,6 +285,37 @@ static int _dw_eth_init(struct dw_eth_dev *priv, u8 *enetaddr)
 	return 0;
 }
 
+/*
+ * dma_coherent_check - Wait until data store is processed or timeout occurs
+ * @paddr: pointer to store the descriptor
+ * @val: the expected data to be written
+ * return 0 on success, or -1 if timeout occurs
+ *
+ * workaround for memory coherence, see DTVUN-808
+ * however,it can be universally adopted in other SoCs.
+ */
+static inline int dma_coherent_check(volatile unsigned int *paddr, const unsigned int val)
+{
+	unsigned long start;
+	unsigned long timeout =  (2 * CONFIG_SYS_HZ);
+	int ret = 0;
+
+	start = get_timer(0);
+
+	while (get_timer(start) < timeout) {
+		if(le32_to_cpu(*paddr) == val)
+			break;
+	}
+
+	if (get_timer(start) > timeout)
+	{
+		printf("%s: timeout\n", __func__);
+		ret = -1;
+	}
+
+	return ret;
+}
+
 static int _dw_eth_send(struct dw_eth_dev *priv, void *packet, int length)
 {
 	struct eth_dma_regs *dma_p = priv->dma_regs_p;
@@ -296,6 +327,8 @@ static int _dw_eth_send(struct dw_eth_dev *priv, void *packet, int length)
 	uintptr_t data_start = (uintptr_t)desc_p->dmamac_addr;
 	uintptr_t data_end = data_start +
 		roundup(length, ARCH_DMA_MINALIGN);
+	u32 txrx_status, dmamac_cntl;
+
 	/*
 	 * Strictly we only need to invalidate the "txrx_status" field
 	 * for the following check, but on some platforms we cannot
@@ -317,23 +350,34 @@ static int _dw_eth_send(struct dw_eth_dev *priv, void *packet, int length)
 	/* Flush data to be sent */
 	flush_dcache_range(data_start, data_end);
 
+	txrx_status = desc_p->txrx_status;
+	dmamac_cntl = desc_p->dmamac_cntl;
 #if defined(CONFIG_DW_ALTDESCRIPTOR)
-	desc_p->txrx_status |= DESC_TXSTS_TXFIRST | DESC_TXSTS_TXLAST;
-	desc_p->dmamac_cntl |= (length << DESC_TXCTRL_SIZE1SHFT) &
+	txrx_status |= DESC_TXSTS_TXFIRST | DESC_TXSTS_TXLAST;
+	dmamac_cntl |= (length << DESC_TXCTRL_SIZE1SHFT) &
 			       DESC_TXCTRL_SIZE1MASK;
 
-	desc_p->txrx_status &= ~(DESC_TXSTS_MSK);
-	desc_p->txrx_status |= DESC_TXSTS_OWNBYDMA;
+	txrx_status &= ~(DESC_TXSTS_MSK);
+	txrx_status |= DESC_TXSTS_OWNBYDMA;
 #else
-	desc_p->dmamac_cntl |= ((length << DESC_TXCTRL_SIZE1SHFT) &
+	dmamac_cntl |= ((length << DESC_TXCTRL_SIZE1SHFT) &
 			       DESC_TXCTRL_SIZE1MASK) | DESC_TXCTRL_TXLAST |
 			       DESC_TXCTRL_TXFIRST;
 
-	desc_p->txrx_status = DESC_TXSTS_OWNBYDMA;
+	txrx_status = DESC_TXSTS_OWNBYDMA;
 #endif
+	desc_p->dmamac_cntl = dmamac_cntl;
+	desc_p->txrx_status = txrx_status;
 
 	/* Flush modified buffer descriptor */
 	flush_dcache_range(desc_start, desc_end);
+
+	/*
+	 * coherent check are added between preparetion of dma descriptors
+	 * to guarantee dma-coherent before enabling the dma
+	 */
+	dma_coherent_check(&desc_p->dmamac_cntl, dmamac_cntl);
+	dma_coherent_check(&desc_p->txrx_status, txrx_status);
 
 	/* Test the wrap-around condition. */
 	if (++desc_num >= CONFIG_TX_DESCR_NUM)
