@@ -126,6 +126,12 @@ config SIGMA_MCONFIG
 	help
 	Auto detect each UAMC size and save as ENV 'msize'
 
+config SIGMA_MSIZE_GRANULE
+	int "(MB)Granule of mprobe command"
+	depends on SIGMA_MCONFIG
+	default 128 if SIGMA_SOC_SX6 || SIGMA_SOC_UXLB || SIGMA_SOC_SX7 || SIGMA_SOC_SX8
+	default 256
+
 config SIGMA_AUTOUPDATE
 	bool "Auto update from USB"
 	depends on USB

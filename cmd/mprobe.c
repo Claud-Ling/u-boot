@@ -54,7 +54,7 @@ static int do_mprobe ( cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[]
 #endif
 
 		for (i = 0, msz = 0; i < CONFIG_SIGMA_NR_UMACS; i++) {
-			msz |= (sz[i] >> 27) << (4 * i);
+			msz |= (sz[i] / (CONFIG_SIGMA_MSIZE_GRANULE<<20)) << (4 * i);
 		}
 
 		trace("msize %x\n", msz);
