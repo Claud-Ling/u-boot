@@ -79,6 +79,7 @@ static void fw_boot(void)
 	void *data = NULL;
 	char *s = NULL;
 	unsigned long load_addr = 0;
+	uint64_t image_sz = 0;
 	char cmd[64] = { 0 };
 
 #if CONFIG_ARM64
@@ -126,7 +127,13 @@ static void fw_boot(void)
 	}
 
 
-	rd_sz = fw_read_volume(g_ctx, (void *)load_addr, part->info->size);
+	/*
+	 * valid_sz indicate the valid content size of this part, so here perferred
+	 * load valid data can improve boot time.
+	 */
+	(part->info->valid_sz > 0) ? (image_sz = part->info->valid_sz):(image_sz = part->info->size);
+	rd_sz = fw_read_volume(g_ctx, (void *)load_addr, image_sz);
+
 	if (rd_sz < 0) {
 		printf("fw: Load volume(%s) content failed!\n", boot->info->name);
 		return;
