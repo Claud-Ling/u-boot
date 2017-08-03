@@ -96,6 +96,7 @@ typedef struct _tagSdImgDesc{
 
 typedef struct _tagSdMipsBootDev{
 	SdBootDev_t id;
+	u32 pagesize;
 	int (*get_header)(void *load_addr, int load_size, mips_img_hdr* hdr);
 	u32 (*get_loadaddr)(void *img, u32 len, u32 addr);
 	int (*load_image)(void* img, u32 len, void* dest);
@@ -107,11 +108,11 @@ typedef struct _tagSdMipsBootDev{
 typedef int (*loadfunc_t)(void* img, u32 len, void* dest);
 
 #define BOOT_DEVICE(nm) bootdev_##nm
-#define DECLARE_BOOT_DEVICE(nm, id, get_hdr, get_la, 	\
+#define DECLARE_BOOT_DEVICE(nm, id, psz,get_hdr, get_la,\
 			ld_img, ld_mf, ld_st, wd)	\
 	static SdMipsBootDev_t BOOT_DEVICE(nm) = {(id),	\
-		(get_hdr),(get_la), (ld_img), (ld_mf), 	\
-		(ld_st), (wd)}
+		(psz), (get_hdr),(get_la), (ld_img),	\
+		(ld_mf), (ld_st), (wd)}
 
 static SdImgDesc_t imgdescs[] =
 {
@@ -276,6 +277,7 @@ static void ddr_withdraw(void)
 
 DECLARE_BOOT_DEVICE(ddr,
 		BOOTDEV_DDR,
+		4,
 		ddr_get_header,
 		ddr_get_loadaddr,
 		ddr_load_image,
@@ -398,6 +400,7 @@ static void mmc_withdraw(void)
 
 DECLARE_BOOT_DEVICE(mmc,
 		BOOTDEV_MMC,
+		PAGESIZE,
 		mmc_get_header,
 		mmc_get_loadaddr,
 		mmc_load_image,
@@ -512,6 +515,7 @@ static void nand_withdraw(void)
 
 DECLARE_BOOT_DEVICE(nand,
 		BOOTDEV_NAND,
+		PAGESIZE,
 		nand_get_header,
 		nand_get_loadaddr,
 		nand_load_image,
@@ -525,6 +529,11 @@ DECLARE_BOOT_DEVICE(nand,
 #undef TONANDADDR
 #undef NAND_ISALIGN
 #endif /* CONFIG_CMD_NAND */
+
+/*
+ * boot device
+ */
+static SdMipsBootDev_t *bootdev = &BOOT_DEVICE(ddr); /* default boot from dram */
 
 #ifdef CONFIG_DEBUG_MIPS
 /*
@@ -1426,13 +1435,15 @@ static int do_load_tse(void* img, u32 slen, uintptr_t dest, u32 blen, loadfunc_t
 	 * 2. use tmp buffer [dest-buf_size, dest)
 	 *
 	 * where buf_size is deduced by
-	 *   buf_size = strtoul("tse_cache_size", 16) if env "tse_cache_size" is specified.
-	 *   otherwise buf_size = slen.
+	 *   d_size = strtoul("tse_cache_size", 16) if env "tse_cache_size" is specified.
+	 *   otherwise d_size = slen.
+	 *   buf_size = roundup(d_size, pagesize);
 	 */
 	if ((s = getenv("tse_cache_size")))
 		buf_size = simple_strtoul(s, 0, 16);
 	else
 		buf_size = slen;
+	buf_size = roundup(tsize, bootdev->pagesize);	/* must align it to pagesize */
 
 	buf = mbuf = memalign(ARCH_DMA_MINALIGN, buf_size);
 	if (!buf) {
@@ -1649,7 +1660,6 @@ static int do_bootmips(cmd_tbl_t * cmdtp, int flag, int argc, char * const argv[
 	int load_size = -1;
 	int mem_sel = 0;
 	int i = 0;
-	SdMipsBootDev_t *bootdev = &BOOT_DEVICE(ddr); /* default boot from dram */
 	char* p = NULL, *cfg_fn = NULL, *st_fn = NULL;
 
 	if (argc < 2)
@@ -1864,7 +1874,7 @@ static int do_bootmips(cmd_tbl_t * cmdtp, int flag, int argc, char * const argv[
 			goto OUT;
 		}
 
-		if (PANEL_TYPE_INVAL == tmp) {
+		if ((tmp & PANEL_TYPE_INVAL) == PANEL_TYPE_INVAL) {
 			char* p = getenv("panel_type");
 			if (p != NULL) {
 				const char* attr = "panel";
@@ -1890,7 +1900,7 @@ static int do_bootmips(cmd_tbl_t * cmdtp, int flag, int argc, char * const argv[
 			goto OUT;
 		}
 
-		if (PANEL_TYPE_INVAL == tmp){
+		if ((tmp & PANEL_TYPE_INVAL) == PANEL_TYPE_INVAL){
 			char* p = getenv("frcx_panel");
 			if (p != NULL) {
 				const char* attr = "frcxpal";
