@@ -148,6 +148,39 @@ __weak void mmu_setup(void)
 	set_sctlr(get_sctlr() | CR_M);
 }
 
+#ifdef CONFIG_ARCH_SIGMA_TRIX
+#include <asm/io.h>
+/*
+ * The coherency patch here stands on the fact that every write is queued on the bus.
+ *
+ * Coherent help handler, exclusively reside in a double cache lines.
+ * The idea here is to place an extra write and readback check on every flush_dcache.
+ *
+ * Note that the while loop shall be ended in no more than one try since UNION1 A1.
+ *
+ * For more insights please take a look at DTVUN-808
+ */
+static struct coherent_help {
+	volatile uint32_t nonce[CONFIG_SYS_CACHELINE_SIZE >> 1];
+} coh __aligned(CONFIG_SYS_CACHELINE_SIZE << 1);
+
+static void do_coherent_patch(void)
+{
+	uint32_t tmp;
+	tmp = coh.nonce[0] + 1;
+	mb();
+	coh.nonce[0] = tmp;
+	do {
+		mb();
+		__asm_flush_dcache_range((u64)&coh, (u64)&coh + sizeof(coh));
+	} while (coh.nonce[0] != tmp);
+}
+#else
+static void do_coherent_patch(void)
+{
+}
+#endif /*CONFIG_ARCH_SIGMA_TRIX*/
+
 /*
  * Performs a invalidation of the entire data cache at all levels
  */
@@ -166,6 +199,7 @@ inline void flush_dcache_all(void)
 	int ret;
 
 	__asm_flush_dcache_all();
+	do_coherent_patch();
 	ret = __asm_flush_l3_cache();
 	if (ret)
 		debug("flushing dcache returns 0x%x\n", ret);
@@ -187,6 +221,7 @@ void invalidate_dcache_range(unsigned long start, unsigned long stop)
 void flush_dcache_range(unsigned long start, unsigned long stop)
 {
 	__asm_flush_dcache_range(start, stop);
+	do_coherent_patch();
 }
 
 void dcache_enable(void)
