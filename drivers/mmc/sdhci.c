@@ -391,6 +391,200 @@ static void sdhci_set_power(struct sdhci_host *host, unsigned short power)
 	sdhci_writeb(host, pwr, SDHCI_POWER_CONTROL);
 }
 
+#if defined(CONFIG_TRIX_MMC)
+#define TAP_REG		(0x400)
+
+/* Output delay EN*/
+#define OP_DLY_EN	(1<<12)
+
+/* Input delay EN */
+#define IP_DLY_EN	(1<<5)
+
+#define TAP_DLY_TIMING_MASK (0x1fff)
+
+#define TUNING_COUNT_MASK (0x3f0000)
+
+#define MK_TAP_DELAY(indelay, outdelay)	({			\
+	uint16_t val = 0x0;					\
+	val = ((((outdelay) & 0xf) << 8) | 			\
+		 OP_DLY_EN);					\
+	if (indelay) {						\
+		val |= (((indelay) & 0x1f) | IP_DLY_EN );	\
+	}							\
+	val;							\
+})
+static void sdhci_trix_set_clk_delay(struct sdhci_host *host, u16 timing)
+{
+	u32 clksel;
+	struct mmc *mmc = host->mmc;
+
+	clksel = sdhci_readl(host, TAP_REG);
+	clksel &= ~TAP_DLY_TIMING_MASK;
+	clksel |= timing & TAP_DLY_TIMING_MASK;
+
+	/* HS200 case */
+	if (mmc->clock == 200000000) {
+		/* Setup Tuning count number of Rx taps implement (32 step) */
+		clksel &= ~TUNING_COUNT_MASK;
+		clksel |= 0x200000;
+	}
+
+	sdhci_writel(host, clksel, TAP_REG);
+}
+
+#define MAX_TUNING_LOOP 40
+#define MMC_SEND_TUNING_BLOCK_HS200 21
+#define MMC_STOP_TRANSMISSION	12
+int sdhci_execute_tuning(struct mmc *mmc)
+{
+	struct sdhci_host *host = mmc->priv;
+	u16 ctrl;
+	int tuning_loop_counter = MAX_TUNING_LOOP;
+	int err = 0;
+
+	ctrl = sdhci_readw(host, SDHCI_HOST_CONTROL2);
+	ctrl |= SDHCI_CTRL_EXEC_TUNING;
+	sdhci_writew(host, ctrl, SDHCI_HOST_CONTROL2);
+
+	/*
+	 * As per the Host Controller spec v3.00, tuning command
+	 * generates Buffer Read Ready interrupt, so enable that.
+	 *
+	 * Note: The spec clearly says that when tuning sequence
+	 * is being performed, the controller does not generate
+	 * interrupts other than Buffer Read Ready interrupt. But
+	 * to make sure we don't hit a controller bug, we _only_
+	 * enable Buffer Read Ready interrupt here.
+	 */
+	sdhci_writel(host, SDHCI_INT_DATA_AVAIL, SDHCI_INT_ENABLE);
+
+	/*
+	 * Issue CMD19 repeatedly till Execute Tuning is set to 0 or the number
+	 * of loops reaches 40 times or a timeout of 150ms occurs.
+	 */
+	do {
+		u32 flags;
+		struct mmc_cmd cmd = {0};
+
+		cmd.cmdidx = MMC_SEND_TUNING_BLOCK_HS200;
+		cmd.cmdarg = 0;
+		cmd.resp_type = MMC_RSP_R1;
+
+		flags = SDHCI_CMD_RESP_SHORT | SDHCI_CMD_CRC \
+			| SDHCI_CMD_INDEX | SDHCI_CMD_DATA;
+
+		if (tuning_loop_counter-- == 0)
+			break;
+
+
+		/*
+		 * In response to CMD19, the card sends 64 bytes of tuning
+		 * block to the Host Controller. So we set the block size
+		 * to 64 here.
+		 */
+		if (cmd.cmdidx == MMC_SEND_TUNING_BLOCK_HS200) {
+			if (mmc->bus_width == 8)
+				sdhci_writew(host, SDHCI_MAKE_BLKSZ(7, 128),
+					     SDHCI_BLOCK_SIZE);
+			else if (mmc->bus_width == 4)
+				sdhci_writew(host, SDHCI_MAKE_BLKSZ(7, 64),
+					     SDHCI_BLOCK_SIZE);
+		} else {
+			sdhci_writew(host, SDHCI_MAKE_BLKSZ(7, 64),
+				     SDHCI_BLOCK_SIZE);
+		}
+
+		/*
+		 * The tuning block is sent by the card to the host controller.
+		 * So we set the TRNS_READ bit in the Transfer Mode register.
+		 * This also takes care of setting DMA Enable and Multi Block
+		 * Select in the same register to 0.
+		 */
+		sdhci_writew(host, SDHCI_TRNS_READ, SDHCI_TRANSFER_MODE);
+
+		sdhci_writeb(host, 0xe, SDHCI_TIMEOUT_CONTROL);
+
+		sdhci_writew(host, SDHCI_MAKE_CMD(cmd.cmdidx, flags), SDHCI_COMMAND);
+
+		/* Wait for Buffer Read Ready interrupt (Max to 50ms)*/
+		u32 stat, rdy;
+		u32 timeout = 50;
+		rdy = SDHCI_INT_SPACE_AVAIL | SDHCI_INT_DATA_AVAIL;
+
+		do {
+			stat = sdhci_readl(host, SDHCI_INT_STATUS);
+			if (stat & SDHCI_INT_ERROR) {
+				printf("%s: Error detected in status(0x%X)!\n", __func__, stat);
+				err = -1;
+				break;
+			}
+
+			if (stat & rdy) {
+				sdhci_writel(host, stat, SDHCI_INT_STATUS);
+				err = 0;
+				break;
+			}
+
+			mdelay(1);
+			timeout--;
+		} while(timeout != 0);
+
+		if (timeout == 0 || err) {
+			printf("HS200 auto-tuning: "
+				"falling back to fixed sampling clock\n");
+			ctrl = sdhci_readw(host, SDHCI_HOST_CONTROL2);
+			ctrl &= ~SDHCI_CTRL_TUNED_CLK;
+			ctrl &= ~SDHCI_CTRL_EXEC_TUNING;
+			sdhci_writew(host, ctrl, SDHCI_HOST_CONTROL2);
+
+			sdhci_reset(host, SDHCI_RESET_CMD);
+			sdhci_reset(host, SDHCI_RESET_DATA);
+
+			err = -1;
+
+			if (cmd.cmdidx != MMC_SEND_TUNING_BLOCK_HS200)
+				goto out;
+
+			/* Enable only interrupts served by the SD controller */
+			sdhci_writel(host, SDHCI_INT_DATA_MASK | SDHCI_INT_CMD_MASK,
+									SDHCI_INT_ENABLE);
+
+			memset(&cmd, 0, sizeof(cmd));
+			cmd.cmdidx = MMC_STOP_TRANSMISSION;
+			cmd.resp_type = MMC_RSP_R1b;
+			sdhci_send_command(mmc, &cmd, NULL);
+
+			goto out;
+		}
+
+		ctrl = sdhci_readw(host, SDHCI_HOST_CONTROL2);
+
+	} while (ctrl & SDHCI_CTRL_EXEC_TUNING);
+
+	/*
+	 * The Host Driver has exhausted the maximum number of loops allowed,
+	 * so use fixed sampling frequency.
+	 */
+	if (tuning_loop_counter < 0) {
+		ctrl &= ~SDHCI_CTRL_TUNED_CLK;
+		sdhci_writew(host, ctrl, SDHCI_HOST_CONTROL2);
+	}
+	if (!(ctrl & SDHCI_CTRL_TUNED_CLK)) {
+		printf( "HS200: Tuning procedure"
+			" failed, falling back to fixed sampling"
+			" clock\n");
+		err = -1;
+	}
+out:
+	/* Enable only interrupts served by the SD controller */
+	sdhci_writel(host, SDHCI_INT_DATA_MASK | SDHCI_INT_CMD_MASK,
+		     SDHCI_INT_ENABLE);
+
+	return err;
+
+}
+#endif
+
 static void sdhci_set_ios(struct mmc *mmc)
 {
 	u32 ctrl;
@@ -430,6 +624,7 @@ static void sdhci_set_ios(struct mmc *mmc)
 	sdhci_writeb(host, ctrl, SDHCI_HOST_CONTROL);
 
 #if defined(CONFIG_TRIX_MMC)
+
 	/* Disable clock */
 	sdhci_set_clock(mmc, 0);
 
@@ -438,10 +633,11 @@ static void sdhci_set_ios(struct mmc *mmc)
 
 	if (SDHCI_GET_VERSION(host) >= SDHCI_SPEC_300) {
 		u32 ctrl2;
+		u16 tap;
 
 		ctrl2 = sdhci_readw(host, SDHCI_HOST_CONTROL2);
 		ctrl2 &= ~SDHCI_CTRL_UHS_MASK;
-		
+
 		/* Enable UHS DDR timing */
 		if (mmc->ddr_mode) {
 			ctrl2 |= SDHCI_CTRL_UHS_DDR50;
@@ -450,24 +646,34 @@ static void sdhci_set_ios(struct mmc *mmc)
 			sdhci_writeb(host, ctrl, SDHCI_HOST_CONTROL);
 			printf("Set eMMC DDR50 TAP delay\n");
 #if defined(CONFIG_SIGMA_SOC_SX7) || defined(CONFIG_SIGMA_SOC_SX6)
-			writel( (readl(0xfb00a400) & ~0x1fff) | 0x1600, 0xfb00a400 );
+			tap = MK_TAP_DELAY(0x0, 0x6);
 #elif defined(CONFIG_SIGMA_SOC_SX8)
-			writel( (readl(0xfb00a400) & ~0x1fff) | 0x1500, 0xfb00a400 );
+			tap = MK_TAP_DELAY(0x0, 0x5);
 #elif defined(CONFIG_SIGMA_SOC_UNION)
 			/*Update to TAP out delay to 0x2, need wait hardware check IO character */
-			writel( (readl(0xfb00a400) & ~0x1fff) | 0x1200, 0xfb00a400 ); /*TODO*/
+			tap = MK_TAP_DELAY(0x0, 0x2);
 #endif
 		} else {
 			ctrl2 &= ~SDHCI_CTRL_UHS_MASK;
-			printf("Set eMMC SDR50 TAP delay\n");
+			if (mmc->clock < 200000000) {
+				printf("Set eMMC SDR50 TAP delay\n");
 #if defined(CONFIG_SIGMA_SOC_SX7) || defined(CONFIG_SIGMA_SOC_SX6)
-			writel( (readl(0xfb00a400) & ~0x1f00) | 0x1c00, 0xfb00a400 );
+				tap = MK_TAP_DELAY(0x0, 0xc);
 #elif defined(CONFIG_SIGMA_SOC_SX8)
-			writel( (readl(0xfb00a400) & ~0x1f00) | 0x1600, 0xfb00a400 );
+				tap = MK_TAP_DELAY(0x0, 0x6);
 #elif defined(CONFIG_SIGMA_SOC_UNION)
-			writel( (readl(0xfb00a400) & ~0x1f00) | 0x1600, 0xfb00a400 ); /*TODO*/
+				tap = MK_TAP_DELAY(0x0, 0x6);
 #endif
+			} else {
+				printf("Set eMMC HS200 TAP delay\n");
+				tap = MK_TAP_DELAY(0x4, 0x4);
+				ctrl2 |= SDHCI_CTRL_HS_SDR200;
+				ctrl |= SDHCI_CTRL_HISPD;
+				sdhci_writeb(host, ctrl, SDHCI_HOST_CONTROL);
+
+			}
 		}
+		sdhci_trix_set_clk_delay(host, tap);
 
 		sdhci_writew(host, ctrl2, SDHCI_HOST_CONTROL2);
 

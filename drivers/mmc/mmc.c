@@ -1027,6 +1027,76 @@ static void mmc_set_bus_width(struct mmc *mmc, uint width)
 	mmc_set_ios(mmc);
 }
 
+#if defined(CONFIG_TRIX_MMC) && defined(CONFIG_TRIX_MMC_HS200)
+extern int sdhci_execute_tuning(struct mmc *mmc);
+static int mmc_select_hs200(struct mmc *mmc)
+{
+	int err;
+	u32 clock = mmc->clock;
+
+	/*
+	 * Card switch to 8bit mode.
+	 */
+	err = mmc_switch(mmc, EXT_CSD_CMD_SET_NORMAL, EXT_CSD_BUS_WIDTH, EXT_CSD_BUS_WIDTH_8);
+	if (err) {
+		debug("switch to 8bit failed\n");
+		goto error;
+	}
+	mmc_set_bus_width(mmc, 8);
+
+	/*
+	 * Card switch to HS200 timing
+	 */
+#define EXT_CSD_TIMING_HS200	2	/* HS200 */
+	err = mmc_switch(mmc, EXT_CSD_CMD_SET_NORMAL, EXT_CSD_HS_TIMING, EXT_CSD_TIMING_HS200);
+	if (err) {
+		debug("switch to HS200 failed\n");
+		goto rollback_1bit_mode;
+	}
+
+	/* Setup clock & UHS timing */
+	mmc->tran_speed = 200000000;
+	mmc_set_clock(mmc, mmc->tran_speed);
+
+	/* Execute tuning command */
+	err = sdhci_execute_tuning(mmc);
+	if (err) {
+		debug("Execute tuning failed\n");
+		goto rollback_compat_timing;
+	}
+
+	return 0;
+
+
+
+rollback_compat_timing:
+	/* Recovery old bus clock */
+	mmc->tran_speed = clock;
+	mmc_set_clock(mmc, mmc->tran_speed);
+
+	err = mmc_switch(mmc, EXT_CSD_CMD_SET_NORMAL, EXT_CSD_HS_TIMING, 0);
+	if (err) {
+		printf("mmc: fatal error, rollback compat timing failed\n");
+		return -1;
+	}
+
+
+rollback_1bit_mode:
+	/*
+	 * Card switch to 8bit mode.
+	 */
+	err = mmc_switch(mmc, EXT_CSD_CMD_SET_NORMAL, EXT_CSD_BUS_WIDTH, EXT_CSD_BUS_WIDTH_1);
+	if (err) {
+		printf("mmc: fatal error, rollback to 1 bit mode failed\n");
+		return -1;
+	}
+
+	mmc_set_bus_width(mmc, 1);
+error:
+	return -1;
+}
+#endif
+
 static int mmc_startup(struct mmc *mmc)
 {
 	int err, i;
@@ -1376,6 +1446,20 @@ static int mmc_startup(struct mmc *mmc)
 	} else if (mmc->version >= MMC_VERSION_4) {
 		/* Only version 4 of MMC supports wider bus widths */
 		int idx;
+#if defined(CONFIG_TRIX_MMC_HS200)
+
+#define EXT_CSD_CARD_TYPE_HS200_1_8V    (1<<4)  /* Card can run at 200MHz */
+#define EXT_CSD_CARD_TYPE_HS200_1_2V    (1<<5)  /* Card can run at 200MHz */
+#define EXT_CSD_CARD_TYPE_HS200         (EXT_CSD_CARD_TYPE_HS200_1_8V | \
+					EXT_CSD_CARD_TYPE_HS200_1_2V)
+
+		if (ext_csd[EXT_CSD_CARD_TYPE] & EXT_CSD_CARD_TYPE_HS200) {
+			err = mmc_select_hs200(mmc);
+			if (err == 0)
+				goto done;
+			printf("HS200 N/A, back to DDR mode\n");
+		}
+#endif
 
 		/* An array of possible bus widths in order of preference */
 		static unsigned ext_csd_bits[] = {
@@ -1467,6 +1551,9 @@ static int mmc_startup(struct mmc *mmc)
 
 	mmc_set_clock(mmc, mmc->tran_speed);
 
+#if defined(CONFIG_TRIX_MMC_HS200)
+done:
+#endif
 	/* Fix the block length for DDR mode */
 	if (mmc->ddr_mode) {
 		mmc->read_bl_len = MMC_MAX_BLOCK_LEN;

@@ -150,6 +150,11 @@ config SIGMA_DTV_SECURITY
 config PANEL_ID_EXTENSION
 	bool "Extend panel type to 16-bit long"
 
+config TRIX_MMC_HS200
+	bool "eMMC HS200 mode support"
+	depends on TRIX_MMC
+	default y if SIGMA_SOC_UNION
+
 endmenu
 endmenu
 config SYS_SOC
