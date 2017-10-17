@@ -3670,9 +3670,9 @@ EXPORT_SYMBOL(nand_scan_ident);
 
 #if defined (CONFIG_TANGO4)
 int tangox_nand_scan_ident(struct mtd_info *mtd, int maxchips,
-		    struct nand_flash_dev *table)
+		    int* maf_id, int* dev_id)
 {
-	int busw, nand_maf_id, nand_dev_id;
+	int busw;
 	struct nand_chip *chip = mtd->priv;
 	const struct nand_flash_dev *type;
 
@@ -3682,7 +3682,7 @@ int tangox_nand_scan_ident(struct mtd_info *mtd, int maxchips,
 	nand_set_defaults(chip, busw);
 
 	/* Read the flash type */
-	type = nand_get_flash_type(mtd, chip, &nand_maf_id, &nand_dev_id, table);
+	type = nand_get_flash_type(mtd, chip, maf_id, dev_id, NULL);
 
 	if (IS_ERR(type)) {
 #ifndef CONFIG_SYS_NAND_QUIET_TEST

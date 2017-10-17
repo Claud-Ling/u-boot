@@ -111,8 +111,23 @@ struct chip_private
 {
     unsigned int cs;    /* chip select */
     uint8_t *bbuf;      /* bounce buffer */
+    uint32_t found_match;
+    uint32_t params[10];
 };
 
+enum NAND_PARAMS
+{
+	CFG1 = 0,
+	CFG2,
+	CFG3,
+	TIMG1,
+	TIMG2,
+	DEVCFG,
+	XFERCFG,
+	PKT0CFG,
+	PKTNCFG,
+	BBCFG
+};
 
 enum PAD_MODES 
 {
@@ -150,7 +165,7 @@ extern int xenv_get(u32 *base, u32 size, char *recordname, void *dst, u32 *datas
 extern unsigned long tangox_phys_addr(volatile void* virtual_addr);
 extern unsigned long tangox_dma_address(unsigned long physaddr);
 extern int tangox_nand_scan_ident(struct mtd_info *mtd, int maxchips, 
-                                  const struct nand_flash_dev *table);
+                                  int* maf_id, int* dev_id);
 
 extern unsigned long tangox_chip_id(void);
 
@@ -572,6 +587,18 @@ static int tangox_packet_config(struct mtd_info *mtd, struct nand_chip *chip, in
 
     debug("tangox_packet_config - len: %d\n", len);
 
+	/* try xenv read parameters */
+    if ( chip_privs[cs].found_match != 0 ) {
+		uint32_t xfer_cfg = (chip_privs[cs].params[XFERCFG] & ~(0x1F << 16)) | (1<<16);
+
+		WR_HOST_REG32(XFER_CFG(chx_reg[cs]), xfer_cfg | csel);//xfer
+		WR_HOST_REG32(PACKET_0_CFG(chx_reg[cs]), chip_privs[cs].params[PKT0CFG]);	 //packet_0
+		WR_HOST_REG32(PACKET_N_CFG(chx_reg[cs]), chip_privs[cs].params[PKTNCFG]);	 //packet_N
+		WR_HOST_REG32(BAD_BLOCK_CFG(chx_reg[cs]), chip_privs[cs].params[BBCFG]);	 //bad_block
+		return 0;
+	}
+
+	/* try old style packet config */
     if ( nand_ctrler == MLC2_NAND_CTRLER ) {
         
         /* 2K packet */
@@ -784,7 +811,7 @@ static int tangox_write_page_hwecc(struct mtd_info *mtd, struct nand_chip *chip,
 	uint8_t *buf = (uint8_t *)buffer;
 	uint8_t *bbuf = ((struct chip_private *)chip->priv)->bbuf;
 	dma_addr_t dma_addr;
-    
+
     /* set pad muxing */
     tangox_set_padmode( PAD_MODE_MLC );
     WR_HOST_REG32( chx_mem[cs] + MLC2_BADBLOCK_OFFSET,   0xffffffff );
@@ -827,7 +854,7 @@ static int tangox_write_page_hwecc(struct mtd_info *mtd, struct nand_chip *chip,
         //printf( "-buf: 0x%x, len: 0x%x, al_buf: 0x%x, al_end: 0x%x\n", 
         //    (unsigned int)buf, len, (unsigned int)aligned_buf, aligned_end );
         
-        flush_dcache_range( (ulong)aligned_buf, aligned_end ); 
+        flush_dcache_range( (ulong)aligned_buf, aligned_end );
     }
 #endif    
 
@@ -1648,12 +1675,12 @@ int tangox_board_nand_init(struct nand_chip *nand)
 //taken from  ApplicationNote64MLC2 MLC schemes DEFAULT. boot-everywhere format
 #define DEF_TIMING1_MLC2 0x4c4c261c	/* conservative timing1 */
 #define DEF_TIMING2_MLC2 0x1c12194c	/* conservative timing2 */
-#define DEF_DEVCFG_MLC2  0x061d1135 /* default devcfg, may not be correct */
+#define DEF_DEVCFG_MLC2  0x35       /* default devcfg, may not be correct */
 
         u32 timing1, timing2, devcfg;
         u32 def_timing1, def_timing2, def_devcfg;
         char buf[BUFSIZE];
-        u32 dsize, params[10];
+        u32 dsize;
 
         if ( nand_ctrler == MLC_NAND_CTRLER ) {
             def_timing1 = DEF_TIMING1;
@@ -1666,41 +1693,28 @@ int tangox_board_nand_init(struct nand_chip *nand)
             def_devcfg  = DEF_DEVCFG_MLC2;
         }
 
-        memset( params, 0x00, sizeof(params) );
+		/*
+		 * Sets default config - if csN_nand.... xenv keys are available, use them as default
+		 * The configs are overriden after reading the device id and vendor id of the NAND device.
+		 */
+		sprintf(buf, CS_TIMING1, chip_cnt);
+		dsize = sizeof(u32);
+		if ((xenv_get((void *)xenv_addr, MAX_XENV_SIZE, buf, &timing1, &dsize) < 0) || (dsize != sizeof(u32)))
+			timing1 = def_timing1;
 
-        /* read a.nandpart0 */
-        sprintf(buf, NAND_PARAM, chip_cnt);
-        dsize = sizeof(params);
+		sprintf(buf, CS_TIMING2, chip_cnt);
+		dsize = sizeof(u32);
+		if ((xenv_get((void *)xenv_addr, MAX_XENV_SIZE, buf, &timing2, &dsize) < 0) || (dsize != sizeof(u32)))
+			timing2 = def_timing2;
 
-        /* read nand param key first */
-        if ((xenv_get((void *)xenv_addr, MAX_XENV_SIZE, buf, params, &dsize) < 0) && (dsize == 0)) {
-            sprintf(buf, CS_TIMING1, chip_cnt);
-            dsize = sizeof(u32);
-
-            if ((xenv_get((void *)xenv_addr, MAX_XENV_SIZE, buf, &timing1, &dsize) < 0) || (dsize != sizeof(u32)))
-                timing1 = (params[3] ? params[3] : def_timing1);
-
-            sprintf(buf, CS_TIMING2, chip_cnt);
-            dsize = sizeof(u32);
-
-            if ((xenv_get((void *)xenv_addr, MAX_XENV_SIZE, buf, &timing2, &dsize) < 0) || (dsize != sizeof(u32)))
-                timing2 = (params[4] ? params[4] : def_timing2);
-
-            sprintf(buf, CS_DEVCFG, chip_cnt);
-            dsize = sizeof(u32);
-
-            if ((xenv_get((void *)xenv_addr, MAX_XENV_SIZE, buf, &devcfg, &dsize) < 0) || (dsize != sizeof(u32)))
-                devcfg = (params[5] ? params[5] : def_devcfg);
-        }
-        else {
-            timing1 = params[3];
-            timing2 = params[4];
-            devcfg  = params[5];
-        }
+		sprintf(buf, CS_DEVCFG, chip_cnt);
+		dsize = sizeof(u32);
+		if ((xenv_get((void *)xenv_addr, MAX_XENV_SIZE, buf, &devcfg, &dsize) < 0) || (dsize != sizeof(u32)))
+			devcfg = def_devcfg;
 
         WR_HOST_REG32(DEVICE_CFG(chx_reg[chip_cnt]), devcfg);
-        WR_HOST_REG32(TIMING1(chx_reg[chip_cnt]), timing1);
-        WR_HOST_REG32(TIMING2(chx_reg[chip_cnt]), timing2);
+        WR_HOST_REG32(TIMING1(chx_reg[chip_cnt])   , timing1);
+        WR_HOST_REG32(TIMING2(chx_reg[chip_cnt])   , timing2);
     }
 
     chip_cnt++;
@@ -1891,10 +1905,35 @@ int load_mtd_partiotion ( struct mtd_info *mtd, int cs )
 int tangox_nand_scan(struct mtd_info *mtd, struct nand_chip *nand, int maxchips, int chip_idx )
 {
    	int ret;
+	int maf_id, dev_id;
 
-	ret = tangox_nand_scan_ident(mtd, chip_idx /*maxchips*/, NULL);
+	ret = tangox_nand_scan_ident(mtd, chip_idx /*maxchips*/, &maf_id, &dev_id);
 
 	if (!ret) {
+		/* config controller */
+		int n = 0;
+		char buf[BUFSIZE];
+		u32 dsize;
+
+		for ( n = 0; n < 8; n++ ) {
+			sprintf(buf, NAND_PARAM, n);
+			dsize = sizeof(chip_privs[chip_idx].params);
+
+			/* read nand param key first */
+			if ((xenv_get((void *)xenv_addr, MAX_XENV_SIZE, buf, chip_privs[chip_idx].params, &dsize) < 0) && (dsize == 0))
+				continue;
+
+			if ( ((chip_privs[chip_idx].params[0] & 0xFF000000)>>24) == maf_id &&
+				 ((chip_privs[chip_idx].params[0] & 0x00FF0000)>>16) == dev_id ) {
+				/* found match set timing */
+				WR_HOST_REG32(TIMING1(chx_reg[chip_idx])   , chip_privs[chip_idx].params[TIMG1]);
+				WR_HOST_REG32(TIMING2(chx_reg[chip_idx])   , chip_privs[chip_idx].params[TIMG2]);
+				WR_HOST_REG32(DEVICE_CFG(chx_reg[chip_idx]), chip_privs[chip_idx].params[DEVCFG]);
+				chip_privs[chip_idx].found_match = 1;
+				break;
+			}
+		}
+
         /* we should set hw ecc related stuff before call scan tail  */     
         ret = board_nand_post_init(mtd, nand);
    
