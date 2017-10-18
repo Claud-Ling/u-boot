@@ -875,8 +875,9 @@ static int tangox_write_page_hwecc(struct mtd_info *mtd, struct nand_chip *chip,
 	em86xx_mbus_setup_dma(g_mbus_reg, dma_addr, len, NULL, NULL, 1);
 #endif
 	// poll ready status
-	while ((RD_HOST_REG32(STATUS_REG(chx_reg[cs])) & 0x80000000) == 0)
-		; /* wait for completion */
+	while ((RD_HOST_REG32(STATUS_REG(chx_reg[cs])) & 0x80000000) == 0) {
+		udelay(10); /* wait for completion */
+	}
 #ifdef USE_CTRLER_IRQ
 	chx_mbus_done[cs] = 0;
 #endif
